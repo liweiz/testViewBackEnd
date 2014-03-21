@@ -28,9 +28,16 @@ const (
 	dicDetail
 )
 
+func PreprocessRequestOut(route int, req *http.Request, params *martini.Params, ctx *martini.Context, logger *log.Logger, rw *martini.ResponseWriter) {
+	err := PreprocessRequest(route, req, params, ctx)
+	if err != nil {
+		HandleReqBodyError(err, logger, rw)
+	}
+}
+
 // Prepare the incoming and outgoing struct and search criteria for next step
 // Both structs of req and res are returned as pointers.
-func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx *martini.Context, logger *log.Logger, rw *martini.ResponseWriter) (err error) {
+func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx *martini.Context) (err error) {
 	m := req.Method
 	// Get request body and criteria for record(s) searching
 	switch route {
@@ -42,9 +49,7 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 				reqStruct := &ReqSignUpOrIn{}
 				resStruct := &ResSignUpOrIn{}
 				err = GetStructFromReq(req, reqStruct)
-				if err != nil {
-					HandleReqBodyError(err, rw, logger)
-				} else {
+				if err == nil {
 					c := bson.M{
 						"email": reqStruct.Email
 					}
@@ -58,9 +63,7 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 				reqStruct := &ReqSignUpOrIn{}
 				resStruct := &ResSignUpOrIn{}
 				err = GetStructFromReq(req, reqStruct)
-				if err != nil {
-					HandleReqBodyError(err, rw, logger)
-				} else {
+				if err == nil {
 					c := bson.M{
 						"email": reqStruct.Email
 					}
@@ -72,9 +75,7 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 				reqStruct := &ReqRenewTokens{}
 				resStruct := &ResTokens{}
 				err = GetStructFromReq(req, reqStruct)
-				if err != nil {
-					HandleReqBodyError(err, rw, logger)
-				} else {
+				if err == nil {
 					idToCheck := bson.ObjectIdHex(params["user_id"])
 					c := bson.M{
 						"belongTo": idToCheck
@@ -89,9 +90,7 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 				reqStruct := &ReqDeviceInfo{}
 				resStruct := &ResDeviceInfo{}
 				err = GetStructFromReq(req, reqStruct)
-				if err != nil {
-					HandleReqBodyError(err, rw, logger)
-				} else {
+				if err == nil {
 					PrepareVehicle(ctx, reqStruct, resStruct, nil, reqStruct.ReqVerNo, reqStruct.DeviceUUID)
 				}
 			}
@@ -101,9 +100,7 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 				reqStruct := &ReqUser{}
 				resStruct := &ResUser{}
 				err = GetStructFromReq(req, reqStruct)
-				if err != nil {
-					HandleReqBodyError(err, rw, logger)
-				} else {
+				if err == nil {
 					PrepareVehicle(ctx, reqStruct, resStruct, nil, , reqStruct.ReqVerNo, reqStruct.DeviceUUID)
 				}
 			}
@@ -142,9 +139,7 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 				reqStruct := &ReqResetPassword{}
 				resStruct := &ResResetPassword{}
 				err = GetStructFromReq(req, reqStruct)
-				if err != nil {
-					HandleReqBodyError(err, rw, logger)
-				} else {
+				if err == nil {
 					idToCheck := bson.ObjectIdHex(params["user_id"])
 					c := bson.M{
 						"_id": idToCheck
@@ -157,9 +152,6 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 				reqStruct := &ReqSync{}
 				resStruct := &ResSync{}
 				err = GetStructFromReq(req, reqStruct)
-				if err != nil {
-					HandleReqBodyError(err, rw, logger)
-				}
 				idToCheckUser := bson.ObjectIdHex(params["user_id"])
 				cUser := bson.M{
 					"_id": idToCheckUser
@@ -180,9 +172,7 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 			reqStruct := &ReqCard{}
 			resStruct := &ResCards{}
 			err = GetStructFromReq(req, reqStruct)
-			if err != nil {
-				HandleReqBodyError(err, rw, logger)
-			} else {
+			if err == nil {
 				// idToCheck := bson.ObjectIdHex(params["user_id"])
 				// c := bson.M{
 				// 	"belongTo": idToCheck
@@ -196,9 +186,7 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 			idToCheck := bson.ObjectIdHex(params["user_id"])
 			if m == "POST" {
 				err = GetStructFromReq(req, reqStruct)
-				if err != nil {
-					HandleReqBodyError(err, rw, logger)
-				} else {
+				if err == nil {
 					PrepareVehicle(ctx, reqStruct, resStruct, nil, reqStruct.ReqVerNo, reqStruct.DeviceUUID)
 				}
 			} else if m == "GET" {
@@ -211,9 +199,7 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 				PrepareVehicle(ctx, nil, resStruct, c, nil, nil)
 			} else if m == "DELETE" {
 				err = GetStructFromReq(req, reqStruct)
-				if err != nil {
-					HandleReqBodyError(err, rw, logger)
-				} else {
+				if err == nil {
 					PrepareVehicle(ctx, reqStruct, resStruct, nil, reqStruct.ReqVerNo, reqStruct.DeviceUUID)
 				}
 			}

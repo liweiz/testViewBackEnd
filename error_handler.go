@@ -11,23 +11,14 @@ import (
         "reflect"
 )
 
-func HandleReqBodyError(err error, rw *martini.ResponseWriter, logger *log.Logger) {
+func HandleReqBodyError(err error, logger *log.Logger, rw *martini.ResponseWriter) {
     WriteLog(err.Error(), logger)
     // Either no body found or internal error
     if err.Error() == "Request body is nil." {
-        NoReqBodyFound(rw, err.Error())
+        http.Error(rw, err.Error(), StatusBadRequest)
     } else {
-        ResInternalError(rw, err.Error())
+        http.Error(rw, err.Error(), StatusInternalServerError)
     }
-}
-
-// No request body, response with error. StatusBadRequest 400
-func ResNoReqBodyFound(rw *martini.ResponseWriter, msg string) {
-	http.Error(rw, msg, StatusBadRequest)
-}
-
-func ResInternalError(rw *martini.ResponseWriter, msg string) {
-    http.Error(rw, msg, StatusInternalServerError)
 }
 
 // Response for unsuccessfully proccessed request. No body in this case.
