@@ -12,7 +12,7 @@ import (
         "errors"
 )
 
-func (s *Server) ValidatePrimaryAuth(db *mgo.Database, r *http.Request) (err error, isValid bool) { 
+func ValidatePrimaryAuth(db *mgo.Database, r *http.Request) (err error, isValid bool) { 
     auth, err1 := GetAuthInHeader(r)
     err = err1
     if err == nil {
@@ -62,29 +62,29 @@ func CheckTokenExpiration(d *DeviceTokens) (isExpired bool) {
 }
 
 // Return authorization header data
-func GetAuthInHeader(r *http.Request) (*AuthInHeader, error) {
-        auth := r.Header.Get("Authorization")
-        if auth == "" {
-                return nil, nil
+func GetAuthInHeader(r *http.Request) (a *AuthInHeader, err error) {
+    auth := r.Header.Get("Authorization")
+    if auth != "" {
+        s := strings.SplitN(auth, " ", 2)
+        if len(s) != 2 {
+            err = errors.New("Invalid authorization header")
+        } else if s[0] == "Basic" {
+            b, err := base64.StdEncoding.DecodeString(s[1])
+            if err != nil {
+                return nil, err
+            }
+            pair := strings.SplitN(string(b), ":", 2)
+            if len(pair) != 2 {
+                return nil, errors.New("Invalid authorization message")
+            }
+            return &AuthInHeader{AuthType: s[0], Email: pair[0], Password: pair[1]}, nil
+        } else if s[0] == "Bearer" {
+            return &AuthInHeader{AuthType: s[0], Token: s[1]}, nil
         } else {
-                s := strings.SplitN(auth, " ", 2)
-                if len(s) != 2 {
-                        return nil, errors.New("Invalid authorization header")
-                        } else if s[0] == "Basic" {
-                                b, err := base64.StdEncoding.DecodeString(s[1])
-                                if err != nil {
-                                        return nil, err
-                                }
-                                pair := strings.SplitN(string(b), ":", 2)
-                                if len(pair) != 2 {
-                                        return nil, errors.New("Invalid authorization message")
-                                }
-                                return &AuthInHeader{AuthType: s[0], Email: pair[0], Password: pair[1]}, nil
-                        } else if s[0] == "Bearer" {
-                                return &AuthInHeader{AuthType: s[0], Token: s[1]}, nil
-                        } else {
-                                return nil, errors.New("Invalid authorization header")
-                        }
-                }
+            return nil, errors.New("Invalid authorization header")
         }
+    } else {
+        err = errors.New("Invalid authorization header")
+    }
+    return
 }

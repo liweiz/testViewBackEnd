@@ -19,8 +19,8 @@ func HandleVersionConflict(action string, docFromReq interface{}, docFromDB inte
 	if r.Kind() == reflect.Ptr {
 		r = r.Elem()
 	}
-	dv := d.FieldByName("versionNo").Int
-	rv := r.FieldByName("versionNo").Int
+	dv := d.FieldByName("versionNo").Int()
+	rv := r.FieldByName("versionNo").Int()
 	// Currently for card only
 	// docName := reflect.TypeOf(docFromDB).Name()
 	if dv > rv {
@@ -50,30 +50,42 @@ func HandleVersionConflict(action string, docFromReq interface{}, docFromDB inte
 	return
 }
 
-func HandleDeviceInfoConflict(deviceInfoVerNoReq int64, dDb DeviceInfoDb) (decisionCode int) {
-	y := dDb.VersionNo
-	if deviceInfoVerNoReq < y {
-		// Server has a higher version, overwrite the client
-		decisionCode = OverWriteClient
-	} else if deviceInfoVerNoReq > y {
-		// Increase client's versionNo by 1 each time when there is any change on client. However, before sync with the server, the changed versionNo is just an indicator to show if the client's data has been modified since last sync.
-		decisionCode = OverWriteServer
-	} else {
-		decisionCode = OverWriteClient
+func SetDeviceTokens(db *mgo.Database, structFromReq interface{}, params *martini.Params) (tokens TokensInCommon, err error) {
+	x := reflect.ValueOf(structFromReq)
+	if x.Kind() == reflect.Ptr {
+		x = x.Elem()
 	}
-}
-
-func HandleUserConflict(userVerNoReq int64, dDb UserDb) (decisionCode int) {
-	// Before being activated, client provides a button to ask the server to resend the activation email. And another text input field to change email.
-	// Activation is set from server side. But client is able to trigger the sending of activation email.
-	y := dDb.VersionNo
-	if (dDb.Activated == true) && (userVerNoReq != y) {
-		decisionCode = OverWriteClient
-	} else if dDb.Activated == false {
-		decisionCode = OverWriteServerEmail
+	var newId bson.ObjectId
+	if !params["user_id"] {
+		// SignUp, must create a new deviceTokens in db.
+		newId, err = InsertNonDicDB(DeviceTokensNew, structFromReq, db, params)
+		if !err {
+			err = db.C("deviceTokens").Find(bson.M{"_id": newId}).Select(SelectDeviceTokensInCommon).One(&tokens)
+		}
 	} else {
-		decisionCode = OverWriteClient
+		// Get it from url.
+		userId := bson.ObjectIdHex(params["user_id"])
+		if !err {
+			selector = bson.M{
+			// UUID is available in both ReqSignUpOrIn and ReqRenewTokens.
+			"deviceUUID": x.FieldByName("DeviceUUID").String(),
+			"belongTo": userId}
+			_, err = db.C("deviceTokens").Find(selector).Count()
+			if !err {
+				var selector1 bson.M
+				selector1, err = UpdateNonDicDB(DeviceTokensUpdateTokens, structFromReq, db, params)
+				if !err {
+					err = db.C("deviceTokens").Find(selector1).Select(SelectDeviceTokensInCommon).One(&tokens)
+				}
+			} else {
+				newId, err = InsertNonDicDB(DeviceTokensNew, structFromReq, db, params)
+				if !err {
+					err = db.C("deviceTokens").Find(bson.M{"_id": newId}).Select(SelectDeviceTokensInCommon).One(&tokens)
+				}
+			}
+		}
 	}
+	
 }
 
 // If card is unique, return true
@@ -87,8 +99,7 @@ func CheckCardUniqueness(db *mgo.Database, params *martini.Params, cardToCheck *
 		"target": cardToCheck.Target,
 		"translation": cardToCheck.Translation,
 		"context": cardToCheck.Context,
-		"detail": cardToCheck.Detail
-		})).All(&results)
+		"detail": cardToCheck.Detail})).All(&results)
 	if erer == bson.ErrNotFound {
 		isUnique = true
 	}
@@ -107,8 +118,7 @@ func CheckCardInDicUniqueness(db *mgo.Database, cardToCheck *CardInCommon) (isUn
 		"target": cardToCheck.Target,
 		"translation": cardToCheck.Translation,
 		"context": cardToCheck.Context,
-		"detail": cardToCheck.Detail
-		})).One(&result)
+		"detail": cardToCheck.Detail})).One(&result)
 	if err == bson.ErrNotFound {
 		isUnique = true
 	}
@@ -119,9 +129,8 @@ func CheckCardInDicUniqueness(db *mgo.Database, cardToCheck *CardInCommon) (isUn
 func GetDefaultDeviceInfo(userId bson.ObjectId, db *mgo.Database) (info *DeviceInfoInCommon, err error) {
 	var r []DeviceInfoInCommon{}
 	err = db.C("deviceInfos").Find(bson.M{
-		"belongTo": userId
-		}).Select(SelectDeviceInfoInCommon).All(&r)
-	if err == nil {
+		"belongTo": userId}).Select(SelectDeviceInfoInCommon).All(&r)
+	if !err {
 		info, err = GetLatestUpdatedDeviceInfo(&r)
 	}
 	return
@@ -132,7 +141,7 @@ func GetLatestUpdatedDeviceInfo(l *[]DeviceInfo) (info *DeviceInfoInCommon, err 
 		r := FormIntSliceFromDocSlice(l, "LastModified")
 		var x int
 		x, err = MaxInt(r)
-		if err == nil {
+		if !err {
 			for i := range l {
 				if l[i].LastModified == x {
 					info = &l[i]

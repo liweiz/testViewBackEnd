@@ -16,7 +16,7 @@ func PrepareServerLogger(fileName string,) (logger *log.Logger, err error) {
 		}
 	}
 	myFile, err = os.OpenFile(name, O_RDWR, 0666)
-	if err == nil {
+	if !err {
 		logger = log.New(myFile, "[pLang] ", 0)
 		defer myFile.Close()
 	}

@@ -18,6 +18,7 @@ type ReqUpdateEmail struct {
 }
 
 type ReqRenewTokens struct {
+	// UserId is get from params in url.
 	DeviceUUID string
 	Tokens TokensInCommon
 }

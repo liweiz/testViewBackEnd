@@ -16,7 +16,7 @@ const (
 	signUp					= iota
 	signIn
 	renewTokens
-	updateDeviceInfo
+	oneDeviceInfo
 	oneUser
 	activation
 	passwordResetting
@@ -49,10 +49,9 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 				reqStruct := &ReqSignUpOrIn{}
 				resStruct := &ResSignUpOrIn{}
 				err = GetStructFromReq(req, reqStruct)
-				if err == nil {
+				if !err {
 					c := bson.M{
-						"email": reqStruct.Email
-					}
+						"email": reqStruct.Email}
 					PrepareVehicle(ctx, reqStruct, resStruct, c, nil, nil)
 				}
 			}
@@ -63,10 +62,9 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 				reqStruct := &ReqSignUpOrIn{}
 				resStruct := &ResSignUpOrIn{}
 				err = GetStructFromReq(req, reqStruct)
-				if err == nil {
+				if !err {
 					c := bson.M{
-						"email": reqStruct.Email
-					}
+						"email": reqStruct.Email}
 					PrepareVehicle(ctx, reqStruct, resStruct, c, nil, nil)
 				}
 			}
@@ -75,22 +73,21 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 				reqStruct := &ReqRenewTokens{}
 				resStruct := &ResTokens{}
 				err = GetStructFromReq(req, reqStruct)
-				if err == nil {
+				if !err {
 					idToCheck := bson.ObjectIdHex(params["user_id"])
 					c := bson.M{
 						"belongTo": idToCheck
 						"accessToken": reqStruct.Tokens.AccessToken
-						"refreshToken": reqStruct.Tokens.RefreshToken
-					}
+						"refreshToken": reqStruct.Tokens.RefreshToken}
 					PrepareVehicle(ctx, reqStruct, resStruct, c, nil, nil)
 				}
 			}
-		case updateDeviceInfo:
+		case oneDeviceInfo:
 			if m == "POST" {
 				reqStruct := &ReqDeviceInfo{}
 				resStruct := &ResDeviceInfo{}
 				err = GetStructFromReq(req, reqStruct)
-				if err == nil {
+				if !err {
 					PrepareVehicle(ctx, reqStruct, resStruct, nil, reqStruct.ReqVerNo, reqStruct.DeviceUUID)
 				}
 			}
@@ -100,7 +97,7 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 				reqStruct := &ReqUser{}
 				resStruct := &ResUser{}
 				err = GetStructFromReq(req, reqStruct)
-				if err == nil {
+				if !err {
 					PrepareVehicle(ctx, reqStruct, resStruct, nil, , reqStruct.ReqVerNo, reqStruct.DeviceUUID)
 				}
 			}
@@ -119,8 +116,7 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 				resStruct := &ResActivation{}
 				idToCheck := bson.ObjectIdHex(params["user_id"])
 				c := bson.M{
-					"_id": idToCheck
-				}
+					"_id": idToCheck}
 				PrepareVehicle(ctx, nil, resStruct, c, nil, nil)
 			}
 		case passwordResetting:
@@ -139,11 +135,10 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 				reqStruct := &ReqResetPassword{}
 				resStruct := &ResResetPassword{}
 				err = GetStructFromReq(req, reqStruct)
-				if err == nil {
+				if !err {
 					idToCheck := bson.ObjectIdHex(params["user_id"])
 					c := bson.M{
-						"_id": idToCheck
-					}
+						"_id": idToCheck}
 					PrepareVehicle(ctx, reqStruct, resStruct, c, nil, nil)
 				}
 			}
@@ -156,15 +151,12 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 				cUser := bson.M{
 					"_id": idToCheckUser
 					// Compared with non-deleted cards only to minimize the resource needed.
-					"isDeleted": false
-				}
+					"isDeleted": false}
 				cDeviceInfo := bson.M{
-					"_id": reqStruct.DeviceInfo.Id
-				}
+					"_id": reqStruct.DeviceInfo.Id}
 				cCards := bson.M{
 					"belongTo": idToCheckUser,
-					"isDeleted": false
-				}
+					"isDeleted": false}
 				PrepareVehicleSync(ctx, reqStruct, resStruct, cUser, reqStruct.ReqVerNo, reqStruct.DeviceUUID, cDeviceInfo, cCards)
 			}
 		case newCard:
@@ -172,7 +164,7 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 			reqStruct := &ReqCard{}
 			resStruct := &ResCards{}
 			err = GetStructFromReq(req, reqStruct)
-			if err == nil {
+			if !err {
 				// idToCheck := bson.ObjectIdHex(params["user_id"])
 				// c := bson.M{
 				// 	"belongTo": idToCheck
@@ -186,7 +178,7 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 			idToCheck := bson.ObjectIdHex(params["user_id"])
 			if m == "POST" {
 				err = GetStructFromReq(req, reqStruct)
-				if err == nil {
+				if !err {
 					PrepareVehicle(ctx, reqStruct, resStruct, nil, reqStruct.ReqVerNo, reqStruct.DeviceUUID)
 				}
 			} else if m == "GET" {
@@ -194,12 +186,11 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 				c = bson.M{
 					"_id": idToCheck
 					// Compared with non-deleted cards only to minimize the resource needed.
-					"isDeleted": false
-				}
+					"isDeleted": false}
 				PrepareVehicle(ctx, nil, resStruct, c, nil, nil)
 			} else if m == "DELETE" {
 				err = GetStructFromReq(req, reqStruct)
-				if err == nil {
+				if !err {
 					PrepareVehicle(ctx, reqStruct, resStruct, nil, reqStruct.ReqVerNo, reqStruct.DeviceUUID)
 				}
 			}
@@ -217,8 +208,7 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 				c = bson.M{
 					"_id": idToCheck
 					// Compared with non-deleted cards only to minimize the resource needed.
-					"isDeleted": false
-				}
+					"isDeleted": false}
 				resStruct := ResDicResult
 				sourceLang := params["sourcelang"]
 				targetLang := params["targetlang"]
@@ -232,8 +222,7 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 					"text": words
 					// Compared with non-deleted cards only to minimize the resource needed.
 					"isDeleted": false
-					"isHidden": false
-				}
+					"isHidden": false}
 				PrepareVehicle(ctx, nil, resStruct, c, nil, nil)
 			}
 			
@@ -253,8 +242,7 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 				"text": words
 				// Compared with non-deleted cards only to minimize the resource needed.
 				"isDeleted": false
-				"isHidden": false
-			}
+				"isHidden": false}
 			PrepareVehicle(ctx, nil, resStruct, c, nil, nil)
 		case dicDetail:
 			resStruct := ResDicResult
@@ -268,8 +256,7 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 				"belongTo": translationId
 				// Compared with non-deleted cards only to minimize the resource needed.
 				"isDeleted": false
-				"isHidden": false
-			}
+				"isHidden": false}
 			PrepareVehicle(ctx, nil, resStruct, c, nil, nil)
 		case dicContext:
 			resStruct := ResDicResult
@@ -283,8 +270,7 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 				"belongTo": contextId
 				// Compared with non-deleted cards only to minimize the resource needed.
 				"isDeleted": false
-				"isHidden": false
-			}
+				"isHidden": false}
 			PrepareVehicle(ctx, nil, resStruct, c, nil, nil)
 		default:
 			e = error.New("Request not recognized.")

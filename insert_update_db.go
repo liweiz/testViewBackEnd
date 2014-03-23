@@ -48,9 +48,36 @@ const (
 	DicTextDetailNew
 )
 
-func InsertUpdateNonDicDB(defaultDocType int, structFromReq interface{}, db *mgo.Database, params *martini.Params) (err error) {
+func InsertNonDicDB(defaultDocType int, structFromReq interface{}, db *mgo.Database, params *martini.Params) (newId bson.ObjectId, err error) {
 	var d interface{}
-	d, err = PrepareNonDicDocForDB(defaultDocType, structFromReq, params)
+	d, newId, err = PrepareNonDicDocForDB(defaultDocType, structFromReq, params)
+	}
+	if !err {
+		var name string
+		switch defaultDocType {
+		case CardNew:
+			name = "cards"
+		case UserNew:
+			name = "users"
+		case DeviceTokensNew:
+			name = "deviceTokens"
+		case DeviceInfoNew:
+			name = "deviceInfos"
+		case RequestProcessedNew:
+			name = "requestsProcessed"
+		default:
+			err = errors.New("No matched document type for database.")
+		}
+		if !err {
+			err = db.C(name).Insert(d)
+		}
+	}
+	return
+}
+
+func UpdateNonDicDB(defaultDocType int, structFromReq interface{}, db *mgo.Database, params *martini.Params) (selector bson.M, err error) {
+	var d interface{}
+	d, _, err = PrepareNonDicDocForDB(defaultDocType, structFromReq, params)
 	if defaultDocType == UserUpdateActivation || defaultDocType == UserUpdateEmail || defaultDocType == UserUpdatePassword {
 		UserUpdate := UserUpdateActivation
 		defaultDocType = UserUpdate
@@ -58,69 +85,47 @@ func InsertUpdateNonDicDB(defaultDocType int, structFromReq interface{}, db *mgo
 		DeviceInfoUpdate := DeviceInfoUpdateSortOption
 		defaultDocType = DeviceInfoUpdate
 	}
-	switch defaultDocType {
-	case CardNew:
-		if err == nil {
-			err = db.C("cards").Insert(d)
-		}
-	case CardUpdate:
-		if err == nil {
-			err = db.C("cards").Update(bson.M{
-				"_id": bson.ObjectIdHex(params[card_id]),
-				"belongTo": bson.ObjectIdHex(params[user_id])
-				}, d)
-		}
-	case UserNew:
-		if err == nil {
-			err = db.C("users").Insert(d)
-		}
-	case UserUpdate:
-		if err == nil {
-			err = db.C("users").Update(bson.M{
-				"_id": bson.ObjectIdHex(params[user_id])
-				}, d)
-		}
-	case DeviceTokensNew:
-		if err == nil {
-			err = db.C("deviceTokens").Insert(d)
-		}
-	case DeviceTokensUpdateTokens:
-		if err == nil {
+	userId := bson.ObjectIdHex(params["user_id"])
+	if !err {
+		var name string
+		switch defaultDocType {
+		case CardUpdate:
+			selector = bson.M{
+				"_id": bson.ObjectIdHex(params["card_id"]),
+				"belongTo": userId}
+			name = "cards"
+		case UserUpdate:
+			selector = bson.M{"_id": userId}
+			name = "users"
+		case DeviceTokensUpdateTokens:
 			x := reflect.ValueOf(structFromReq)
 			if x.Kind() == reflect.Ptr {
 				x = x.Elem()
 			}
-			err = db.C("deviceTokens").Update(bson.M{
+			selector = bson.M{
 				"deviceUUID": x.FieldByName("DeviceUUID").String(),
-				"belongTo": bson.ObjectIdHex(params[user_id])
-				}, d)
-		}
-	case DeviceInfoNew:
-		if err == nil {
-			err = db.C("deviceInfos").Insert(d)
-		}
-	case DeviceInfoUpdate:
-		if err == nil {
+				"belongTo": userId}
+			name = "deviceTokens"
+		case DeviceInfoUpdate:
 			x := reflect.ValueOf(structFromReq)
 			if x.Kind() == reflect.Ptr {
 				x = x.Elem()
 			}
-			err = db.C("deviceInfos").Update(bson.M{
+			selector = bson.M{
 				"deviceUUID": x.FieldByName("DeviceUUID").String(),
-				"belongTo": bson.ObjectIdHex(params[user_id])
-				}, d)
+				"belongTo": userId}
+			name = "deviceInfos")
+		default:
+			err = errors.New("No matched document type for database.")
 		}
-	case RequestProcessedNew:
-		if err == nil {
-			err = db.C("requestsProcessed").Insert(d)
+		if !err {
+			err = db.C(name).Update(selector, d)
 		}
-	default:
-		err = errors.New("No matched document type for database.")
 	}
 	return
 }
 
-func PrepareNonDicDocForDB(defaultDocType int, structFromReq interface{}, params *martini.Params) (docToSave interface{}, err error) {
+func PrepareNonDicDocForDB(defaultDocType int, structFromReq interface{}, params *martini.Params) (docToSave interface{}, newId bson.ObjectId, err error) {
 	d := reflect.ValueOf(structFromReq)
 	if d.Kind() == reflect.Ptr {
 		d = d.Elem()
@@ -135,14 +140,13 @@ func PrepareNonDicDocForDB(defaultDocType int, structFromReq interface{}, params
 			"detail": d.FieldByName("Card").FieldByName("Detail").String(),
 			"sourceLang": d.FieldByName("Card").FieldByName("SourceLang").String(),
 			"targetLang": d.FieldByName("Card").FieldByName("TargetLang").String(),
-			"_id": bson.NewObjectId(),
+			"_id": newId,
 			// VersionNo begins from 1, not 0.
 			"versionNo": 1,
-			"belongTo": bson.ObjectIdHex(params[user_id]),
+			"belongTo": bson.ObjectIdHex(params["user_id"]),
 			"lastModified": time.Now().UnixNano(),
 			"collectedAt": time.Now().UnixNano(),
-			"isDeleted": false
-		}
+			"isDeleted": false}
 	case CardUpdate:
 		docToSave := bson.M{
 			"$set": bson.M{
@@ -150,11 +154,9 @@ func PrepareNonDicDocForDB(defaultDocType int, structFromReq interface{}, params
 				"target": d.FieldByName("Card").FieldByName("Target").String(),
 				"translation": d.FieldByName("Card").FieldByName("Translation").String(),
 				"detail": d.FieldByName("Card").FieldByName("Detail").String(),
-				"lastModified": time.Now().UnixNano()
-			}
+				"lastModified": time.Now().UnixNano()}
 			"$inc": bson.M{
-				"versionNo": 1
-			}
+				"versionNo": 1}
 		}
 	case UserNew:
 		newId = bson.NewObjectId()
@@ -162,44 +164,37 @@ func PrepareNonDicDocForDB(defaultDocType int, structFromReq interface{}, params
 			// UserInCommon
 			"activated": false,
 			"email": d.FieldByName("Email").String(),
-			"_id": bson.NewObjectId(),
+			"_id": newId,
 			"versionNo": 1,
 
 			//Non UserInCommon part
 			"lastModified": time.Now().UnixNano(),
 			"createdAt": time.Now().UnixNano(),
 			"isDeleted": false,
-			"password": d.FieldByName("Password").String()
-		}
+			"password": d.FieldByName("Password").String()}
 	case UserUpdateActivation:
 		docToSave := bson.M{
 			"$set": bson.M{
 				"lastModified": time.Now().UnixNano(),
-				"activated": true
-			}
+				"activated": true}
 			"$inc": bson.M{
-				"versionNo": 1
-			}
+				"versionNo": 1}
 		}
 	case UserUpdateEmail:
 		docToSave := bson.M{
 			"$set": bson.M{
 				"lastModified": time.Now().UnixNano(),
-				"email": d.FieldByName("NewEmail").String()
-			}
+				"email": d.FieldByName("NewEmail").String()}
 			"$inc": bson.M{
-				"versionNo": 1
-			}
+				"versionNo": 1}
 		}
 	case UserUpdatePassword:
 		docToSave := bson.M{
 			"$set": bson.M{
 				"lastModified": time.Now().UnixNano(),
-				"password": d.FieldByName("NewPassword").String()
-			}
+				"password": d.FieldByName("NewPassword").String()}
 			"$inc": bson.M{
-				"versionNo": 1
-			}
+				"versionNo": 1}
 		}
 	case DeviceTokensNew:
 		newId = bson.NewObjectId()
@@ -214,8 +209,7 @@ func PrepareNonDicDocForDB(defaultDocType int, structFromReq interface{}, params
 			"deviceUUID": d.FieldByName("DeviceUUID").String(),
 			// Each accessToken is valid for 3 hours
 			"accessTokenExpireAt": time.Now().UnixNano() + (3.6e+12) * 3,
-			"lastModified": time.Now().UnixNano()
-		}
+			"lastModified": time.Now().UnixNano()}
 	case DeviceTokensUpdateTokens:
 		accessToken, refreshToken := GenerateTokens(true)
 		docToSave := bson.M{
@@ -223,8 +217,7 @@ func PrepareNonDicDocForDB(defaultDocType int, structFromReq interface{}, params
 				"accessToken": accessToken,
 				"refreshToken": refreshToken,
 				"accessTokenExpireAt": time.Now().UnixNano() + (3.6e+12) * 3,
-				"lastModified": time.Now().UnixNano()
-			}
+				"lastModified": time.Now().UnixNano()}
 		}
 	// DeviceInfo is created after user is created successfully.
 	case DeviceInfoNew:
@@ -232,7 +225,7 @@ func PrepareNonDicDocForDB(defaultDocType int, structFromReq interface{}, params
 		docToSave := bson.M{
 			// DeviceInfoInCommon
 			"_id": newId,
-			"belongTo": bson.ObjectIdHex(params[user_id]),
+			"belongTo": bson.ObjectIdHex(params["user_id"]),
 			"deviceUUID": d.FieldByName("DeviceUUID").String(),
 			// These are set by users after a successful signup.
 			"sourceLang": "",
@@ -240,41 +233,30 @@ func PrepareNonDicDocForDB(defaultDocType int, structFromReq interface{}, params
 			"isLoggedIn": true,
 			"rememberMe": true,
 			"sortOption": "ByLastModifiedDescending",
-			"versionNo": 1,
 
 			// Non DeviceInfoInCommon part
-			"lastModified": time.Now().UnixNano()
-		}
+			"lastModified": time.Now().UnixNano()}
 	case DeviceInfoUpdateSortOption:
 		docToSave := bson.M{
 			"$set": bson.M{
 				"lastModified": time.Now().UnixNano(),
-				"sortOption": d.FieldByName("DeviceInfo").FieldByName("SortOption").String()
-			}
-			"$inc": bson.M{
-				"versionNo": 1
-			}
+				"sortOption": d.FieldByName("DeviceInfo").FieldByName("SortOption").String()}
 		}
 	case DeviceInfoUpdateLang:
 		docToSave := bson.M{
 			"$set": bson.M{
 				"lastModified": time.Now().UnixNano(),
 				"sourceLang": d.FieldByName("DeviceInfo").FieldByName("SourceLang").String(),
-				"targetLang": d.FieldByName("DeviceInfo").FieldByName("TargetLang").String()
-			}
-			"$inc": bson.M{
-				"versionNo": 1
-			}
+				"targetLang": d.FieldByName("DeviceInfo").FieldByName("TargetLang").String()}
 		}
 	case RequestProcessedNew:
 		newId = bson.NewObjectId()
 		docToSave := bson.M{
 			"_id": newId,
-			"belongToUser": bson.ObjectIdHex(params[user_id]),
+			"belongToUser": bson.ObjectIdHex(params["user_id"]),
 			"deviceUUID": d.FieldByName("DeviceUUID").String(),
 			"requestVersionNo": d.FieldByName("RequestVersionNo").Int(),
-			"timestamp": time.Now().UnixNano()
-		}
+			"timestamp": time.Now().UnixNano()}
 	default:
 		err = errors.New("No matched document type for nonDic database.")
 	}
@@ -289,40 +271,40 @@ func InsertDicDB(defaultDocType int, cardInCommon interface{}, db *mgo.Database,
 	d, now, err = PrepareDicDocForDB(defaultDocType, cardInCommon, parentId)
 	switch defaultDocType {
 	case DicTextContextNew:
-		if err == nil {
+		if !err {
 			err = db.C("dicTextContexts").Insert(d)
-			if err == nil {
+			if !err {
 				// Update Detail level parent
 				var grandParentId bson.ObjectId
 				grandParentId, err = UpdateDicParentLastModified(db, "dicTextDetails", parentId, now)
-				if err == nil {
+				if !err {
 					var greatGrandParentId bson.ObjectId
 					greatGrandParentId, err = UpdateDicParentLastModified(db, "dicTextTranslations", grandParentId, now)
-					if err == nil {
+					if !err {
 						_, err = UpdateDicParentLastModified(db, "dicTextTargets", greatGrandParentId, now)
 					}
 				}
 			}
 		}
 	case DicTextTargetNew:
-		if err == nil {
+		if !err {
 			err = db.C("dicTextTargets").Insert(d)
 		}
 	case DicTextTranslationNew:
-		if err == nil {
+		if !err {
 			err = db.C("dicTextTranslations").Insert(d)
-			if err == nil {
+			if !err {
 				var grandParentId bson.ObjectId
 				grandParentId, err = UpdateDicParentLastModified(db, "dicTextTargets", parentId, now)
 			}
 		}
 	case DicTextDetailNew:
-		if err == nil {
+		if !err {
 			err = db.C("dicTextDetails").Insert(d)
-			if err == nil {
+			if !err {
 				var grandParentId bson.ObjectId
 				grandParentId, err = UpdateDicParentLastModified(db, "dicTextTranslations", parentId, now)
-				if err == nil {
+				if !err {
 					var greatGrandParentId bson.ObjectId
 					greatGrandParentId, err = UpdateDicParentLastModified(db, "dicTextTargets", grandParentId, now)
 				}
@@ -377,8 +359,7 @@ func PrepareDicDocForDB(defaultDocType int, card interface{}, parentId bson.Obje
 			"createdAt": now,
 			"lastModified": now,
 			"createdBy": d.FieldByName("BelongTo").String(),
-			"childrenLastUpdatedAt": now
-		}
+			"childrenLastUpdatedAt": now}
 	}
 	return
 }
@@ -392,17 +373,15 @@ func UpdateDicParentLastModified(db *mgo.Database, collectionName string, parent
 		"_id": parentId
 		}).Select(bson.M{
 			"belongToParent": 1,
-			"lastModified": 1
-			}).One(&r)
-	if err == nil {
+			"lastModified": 1}).One(&r)
+	if !err {
 		if now > r.LastModified {
 			err = db.C(collectionName).Update(bson.M{
 			"_id": parentId
 			}, bson.M{
 				"$set": bson.M{
-					"lastModified": now,
-				})
-			if err == nil {
+					"lastModified": now})
+			if !err {
 				grandParentId = r.BelongToParent
 			}
 		}

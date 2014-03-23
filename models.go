@@ -22,8 +22,7 @@ SelectUserInCommon := bson.M{
 	"activated": 1,
 	"email": 1,
 	"_id": 1,
-	"versionNo": 1
-}
+	"versionNo": 1}
 
 type UserInCommon struct {
 	Activated bool 'bson:"activated" json:"activated"'
@@ -43,6 +42,10 @@ type User struct {
 	// For versionNo calculation, newVersionNo = HighestVersionNo + 1
 	// RequestProcessed and HasCards have no effect on VersionNo. In other words, no VersionNo change when either of these two changes.
 }
+
+SelectDeviceTokensInCommon := bson.M{
+	"accessToken": 1,
+	"refreshToken": 1}
 
 type TokensInCommon struct {
 	// When being used, the _id is obtained through device_id in url. E.g., /user/:user_id/deviceinfos/device_id
@@ -67,8 +70,7 @@ Different cases:
 	Client
 */
 SelectDeviceInfoInCommon := bson.M{
-	"lastModified": 0
-}
+	"lastModified": 0}
 
 type DeviceInfoInCommon struct {
 	Id bson.ObjectId 'bson:"_id" json:"_id"'
@@ -82,10 +84,6 @@ type DeviceInfoInCommon struct {
 	SortOption string 'bson:"sortOption" json:"sortOption"'
 	IsLoggedIn bool 'bson:"isLoggedIn" json:"isLoggedIn"'
 	RememberMe bool 'bson:"rememberMe" json:"rememberMe"'
-	// The sync the current max requestVersionNo in the cases such as reuse account deleted on a device, db on either server or client accidently changed so that the max requestVersionNo no longer matched. This has to be checked in every request.
-	// HighestRequestVersionNo is calculated everytime when needed instead of being stored in db.
-	// HighestRequestVersionNo int64 'bson:"highestRequestVersionNo" json:"highestRequestVersionNo"'
-	VersionNo int64 'bson:"versionNo" json:"versionNo"'
 }
 
 // Server side only
@@ -127,8 +125,7 @@ type RequestProcessed struct {
 
 SelectCardInCommon := bson.M{
 	"belongTo": 0,
-	"isDeleted": 0
-}
+	"isDeleted": 0}
 
 type CardInCommon {
 	Context string 'bson:"context" json:"context"'

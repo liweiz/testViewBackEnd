@@ -11,7 +11,7 @@ import (
         "reflect"
 )
 
-func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq interface{}, req *http.Request, structForRes interface{}, params *martini.Params) (decision int, err error) {
+func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq interface{}, req *http.Request, structForRes interface{}, params *martini.Params) (err error) {
 	m := req.Method
 	// x and v are struct corresponding to JSON, so, to get the parts we need, there's one step further needed.
 	x := reflect.ValueOf(structFromReq)
@@ -27,34 +27,23 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 		if route == oneCard {
 			var resultCard CardInCommon
 			err = db.C("cards").Find(criteria).Select(SelectCardInCommon).One(&resultCard)
-			if err == nil {
+			if !err {
 				err = SetResBodyPart(v, "Cards", []CardInCommon{resultCard})
 			}
-
-			
 		} else if route == oneUser {
 			var resultUser UserInCommon
 			err = db.C("users").Find(criteria).Select(SelectUserInCommon).One(&resultUser)
-			decision1, err1 := SetResBodyPart(err, reflect.ValueOf(v), "User", resultUser)
-			if decision1 == HasErr || decision1 == NotFoundOnly {
-				decision = decision1
-				err = err1
-			} else {
-				decision = OkAndUser
+			if !err {
+				err = SetResBodyPart(v, "User", resultUser)
 			}
 		} else if {
 			var resultDeviceInfo DeviceInfoInCommon
 			err := db.C("deviceInfos").Find(bson.M{
 				"belongTo": params["user_id"],
 				// /users/:user_id/devices/:device_id
-				"_id": params["device_id"]
-				}).Select(SelectDeviceInfoInCommon).One(&resultDeviceInfo)
-			decision1, err1 := SetResBodyPart(err, reflect.ValueOf(v), "DeviceInfo", resultDeviceInfo)
-			if decision1 == HasErr || decision1 == NotFoundOnly {
-				decision = decision1
-				err = err1
-			} else {
-				decision = OkAndDeviceInfo
+				"_id": params["device_id"]}).Select(SelectDeviceInfoInCommon).One(&resultDeviceInfo)
+			if !err {
+				err = SetResBodyPart(v, "DeviceInfo", resultDeviceInfo)
 			}
 		}
 	} else if m == "POST" {
@@ -80,69 +69,56 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 			// Check if already in use
 			var n int
 			n, err = db.C("users").Find(criteria).Count()
-			if err == mgo.ErrNotFound {
-				// The email has been in use.
-				decision = ConflictUserAlreadyExists
-			} else if n > 0 && err == nil {
-				err = InsertUpdateNonDicBDB(UserNew, structFromReq, params)
-				if err != nil {
-					decision = OkAndUser
-				}
-			}
-		case deviceInfo:
-			err := db.C("deviceInfo").Find(criteria).One(&v.FieldByName("User"))
-			if err == nil {
-				// The email has been in use.
-				decision = ConflictUserAlreadyExists
-			} else {
-				docToSave, newId, err0 := PrepareDocForDB(UserNew, x.FieldByName("User"), nil, params)
-				dts := reflect.ValueOf(docToSave)
-				if dts.Kind() == reflect.Ptr {
-					dts = dts.Elem()
-				}
-				if dts.Kind() == reflect.Map {
-					err1 := db.C("users").Insert(docToSave)
-					err2 := db.C("deviceInfos").Insert()
-					// Create DeviceInfo and update User
-					if err1 != nil {
-						decision = InternalServerError
-					} else {
-						
-						decision = OkAndUser
+			if n > 0 && !err {
+				var newId bson.ObjectId
+				newId, err = InsertNonDicDB(UserNew, structFromReq, db, params)
+				if !err {
+					var r UserInCommon
+					err = db.C("users").Find(bson.M{
+						"_id": newId}).Select(SelectUserInCommon).One(&r)
+					if !err {
+						v.FieldByName("User").Set(reflect.ValueOf(r))
+						// Proceed to tokens
+						var r1 TokensInCommon
+						r1, err = SetDeviceTokens(db, structFromReq, params)
+						if !err {
+							err = SetResBodyPart(v.FieldByName("Tokens"), "Tokens", reflect.ValueOf(r1))
+						}
 					}
-				} else {
-					decision = InternalServerError
 				}
 			}
-		// No need here: case signIn:
+		case signIn:
+			var r UserInCommon
+			err = db.C("users").Find(criteria).Select(SelectUserInCommon).One(&r)
+			if !err {
+				v.FieldByName("User").Set(reflect.ValueOf(r))
+				// Proceed to tokens
+				var r1 TokensInCommon
+				r1, err = SetDeviceTokens(db, structFromReq, params)
+				if !err {
+					err = SetResBodyPart(v.FieldByName("Tokens"), "Tokens", reflect.ValueOf(r1))
+				}
+			}
+		case renewTokens:
+			var r TokensInCommon
+			r, err = SetDeviceTokens(db, structFromReq, params)
+			if !err {
+				err = SetResBodyPart(v.FieldByName("Tokens"), "Tokens", reflect.ValueOf(r))
+				if !err {
+					err = SetResBodyPart(v.FieldByName("UserId"), "UserId", reflect.ValueOf(params["user_id"]))
+				}
+			}
+		case oneDeviceInfo:
+			err = db.C("deviceInfos").Find(criteria).Count()
+		
 		// Resetting password goes through html, not here.
 		// Activating only changes email after user being activated. It goes through html, not here, either.
-		// Sync user settings is not supported at the beginning, not need to worry about it now.
-		// So POST on user is not needed here. Creating new user is covered by signUp already.
-		// case oneUser:
-		// 	// var aUser User
-		// 	err := db.C("users").Find(criteria).One(&v)
-		// 	if err != nil {
-		// 		decision = NotFoundOnly
-		// 	} else {
-		// 		decision = HandleVersionConflict("update", structFromReq.User, &v)
-		// 	}
-		// 	return
-		// *****************************************************
-		// *****************************************************
-		// case activation:
-		// 	// Should serve html here
-		// 	return
-		// case passwordResetting:
-		// 	// Should serve html here
-		// 	return
 		case sync:
 			userId := bson.ObjectIdHex(params["user_id"])
 			// Sync User
 			myUser := UserInCommon
 			errUser := db.C("users").Find(bson.M{
-				"_id": userId
-				}).Select(SelectUserInCommon).One(&myUser)
+				"_id": userId}).Select(SelectUserInCommon).One(&myUser)
 			outUser := HandleUserConflict(x.FieldByName("User").FieldByName("VersionNo").Int(), myUser)
 			if outUser == OverWriteClient {
 				if v.FieldByName("User").CanSet() {
@@ -156,8 +132,7 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 			errDeviceInfo := db.C("deviceinfos").Find(bson.M{
 				"belongTo": params["user_id"],
 				"deviceUUID": x.FieldByName("DeviceUUID").String(),
-				"_id": x.FieldByName("DeviceInfo").FieldByName("_id")
-				}).Select(SelectDeviceInfoInCommon).One(&myDeviceInfo)
+				"_id": x.FieldByName("DeviceInfo").FieldByName("_id")}).Select(SelectDeviceInfoInCommon).One(&myDeviceInfo)
 			outDeviceInfo := HandleDeviceInfoConflict(x.FieldByName("DeviceInfo").FieldByName("VersionNo").Int(), myDeviceInfo)
 			if outDeviceInfo == OverWriteClient {
 				if v.FieldByName("DeviceInfo").CanSet() {
@@ -246,11 +221,9 @@ func GetDbCardVerList(db *mgo.Database, userId bson.ObjectId) (r []CardsVerList,
 	// Shoud identify the err returned for further possibities.
 	err = db.C("Cards").Find(bson.M{
 		"belongTo": userId,
-		"isDeleted": false
-	}).Select(bson.M{
+		"isDeleted": false}).Select(bson.M{
 		"_id": 1,
-		"versionNo": 1
-		}).All(&r)
+		"versionNo": 1}).All(&r)
 	return
 }
 
@@ -311,11 +284,9 @@ func GetCardListDifference(db *mgo.Database, baseIsClient bool, cardListDB []Car
 func PushCardToCardList(db *mgo.Database, cardList []*CardInCommon, cardID bson.ObjectId) (err error) {
 	var aCard CardInCommon
 	err = db.C("cards").Find(bson.M{
-		"_id": cardID
-		}).Select(bson.M{
-			"isDeleted": 0
-			}).One(&aCard)
-	if err == nil {
+		"_id": cardID}).Select(bson.M{
+			"isDeleted": 0}).One(&aCard)
+	if !err {
 		cardList = append(cardList, &aCard)
 	}
 	// Need to make decision outside of this func according to err == mgo.ErrNotFound
@@ -336,11 +307,11 @@ func SetResBodyPart(partToSet reflect.Value, fieldNameToSet string, valueIn inte
     return
 }
 
-func EncodeAndResponse(structInRes interface{}) {
-	js, err := json.Marshal(structInRes)
+func EncodeAndResponse(structInRes interface{}, rw *martini.ResponseWriter) {
+	body, err := json.Marshal(structInRes)
 	if err != nil {
-		http.Error(rw, "Encoding failed", StatusInternalServerError)
+		http.Error(rw, "Encoding response body failed", StatusInternalServerError)
 	} else {
-		rw.Write(js)
+		rw.Write(body)
 	}
 }

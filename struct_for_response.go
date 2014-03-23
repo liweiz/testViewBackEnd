@@ -8,14 +8,6 @@ import {
     "labix.org/v2/mgo"
 }
 
-const (
-    ResFail             = iota
-    ResSync
-    ResSingleNondelete
-    ResSingleDelete
-    ResUser
-)
-
 /*
 Response body structure(JSON):
 
@@ -58,9 +50,6 @@ Update: send full card
 Delete: send id and versionNo of card only
 
 Response:
-New: no body
-Update: no body, if update on existing card succeeds. Otherwise, show newly created card and the different content of the original target card since update on the existing one fails, hence, the update one is created as a new card on server and the client also needs to update the one it updates in the first place. Coz it changes.
-Delete: send id and versionNo of card only
 
 Sync request:
 {
@@ -151,11 +140,6 @@ Response:
         },
     ]
 }
-
-Response for failed request:
-{
-    "failedReason": "msgContent"
-}
 */
 
 type CardToDeleteInRes struct {
@@ -169,7 +153,7 @@ type ResSignUpOrIn struct {
 }
 
 // RequestVersionNo is used to solve the online/offline sync issue. Tokens is an exception since there is no need to sync tokens, only getting new tokens is needed. Therefore, VersionNo is not necessary here, either.
-// Request related to Tokens is proceeded indenpendently with user/card. 
+// Request related to Tokens is proceeded indenpendently with user/card.
 type ResTokensOnly struct {
     /*
     Two possible situations:
