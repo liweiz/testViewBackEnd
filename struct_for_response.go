@@ -192,7 +192,7 @@ type ResCards struct {
 type ResSync struct {
     User UserInCommon
     DeviceInfo DeviceInfoInCommon
-    CardList []*CardInCommon
+    CardList []CardInCommon
     CardToDelete []bson.ObjectId
 }
 

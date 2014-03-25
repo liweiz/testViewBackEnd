@@ -9,7 +9,16 @@ import (
         "errors"
 )
 
-func HandleVersionConflict(action string, docFromReq interface{}, docFromDB interface{}) (decisionCode int) {
+const (
+	// For new card only
+	ConflictCardAlreadyExists
+	// conflict detail and card(s), possiblely to have two cards, on server that causes the conflict
+	ConflictOverwriteClient
+	NoConflictOverwriteDB
+	ConflictCreateAnotherInDB
+)
+
+func HandleCardVersionConflict(action string, docFromReq interface{}, docFromDB interface{}) (decisionCode int) {
 	// Assume that the uniqueness check has been done before this. So every docFromReq is unique according to the db.
 	d := reflect.ValueOf(docFromDB)
 	if d.Kind() == reflect.Ptr {
@@ -30,22 +39,18 @@ func HandleVersionConflict(action string, docFromReq interface{}, docFromDB inte
 		// For deleting, ignore the delete action and update the doc on client.
 		// Creating is not operate on existing docs, so no need to compare versionNo, only need to check uniqueness.
 		if action == "update" {
-			decisionCode = ConflictDetailAndCardsCreateAnotherInDB	
+			decisionCode = ConflictCreateAnotherInDB	
 		} else if action == "delete" {
 			// If card on server has been deleted, the delete action has no effect. The server will ask the client to delete the card on server as well. The delete request sent by client just happens to be the same decision made  by the server and the version comparison leads to overwriting the client.
 			// If the card on server is not deleted, the higher version f the card on server indicates the client needs to comply with the server's dicision.
 			// In both cases, we need to overwrite card on client.
-			decisionCode = ConflictDetailAndCardsOverwriteClient
+			decisionCode = ConflictOverwriteClient
 		}
 	} else if dv == rv {
-		if action == "update" {
-			decisionCode = OkAndCards
-		} else if action == "delete" {
-			decisionCode = OkOnly
-		}
+		decisionCode = NoConflictOverwriteDB
 	} else if dv < rv {
 		// Impossible. If this does happens, overwrite the client anyway.
-		decisionCode = ConflictDetailAndCardsOverwriteClient
+		decisionCode = ConflictOverwriteClient
 	}
 	return
 }
@@ -85,22 +90,26 @@ func SetDeviceTokens(db *mgo.Database, structFromReq interface{}, params *martin
 			}
 		}
 	}
-	
+	return
 }
 
 // If card is unique, return true
-func CheckCardUniqueness(db *mgo.Database, params *martini.Params, cardToCheck *Card) (isUnique bool, err error) {
-	var results []Card
+func CheckCardUniqueness(db *mgo.Database, params *martini.Params, cardValueInReq reflect.Value) (isUnique bool, duplicated []CardInCommon, err error) {
+	x := reflect.ValueOf(cardValueInReq)
+	if x.Kind() == reflect.Ptr {
+		x = x.Elem()
+	}
 	idToCheck := bson.ObjectIdHex(params["user_id"])
+	// Return the possible cards that duplicated for further process.
 	err = db.C("cards").Find(bson.M{
 		"belongTo": idToCheck,
 		// Only check those not yet deleted. So it is possible to have multiple deleted cards with exactly the same content.
 		"isDeleted": false,
-		"target": cardToCheck.Target,
-		"translation": cardToCheck.Translation,
-		"context": cardToCheck.Context,
-		"detail": cardToCheck.Detail})).All(&results)
-	if erer == bson.ErrNotFound {
+		"target": x.FieldByName("Target").String(),
+		"translation": x.FieldByName("Translation").String(),
+		"context": x.FieldByName("Context").String(),
+		"detail": x.FieldByName("Detail").String()}).All(&duplicated)
+	if err == bson.ErrNotFound {
 		isUnique = true
 	}
 	return
@@ -118,7 +127,7 @@ func CheckCardInDicUniqueness(db *mgo.Database, cardToCheck *CardInCommon) (isUn
 		"target": cardToCheck.Target,
 		"translation": cardToCheck.Translation,
 		"context": cardToCheck.Context,
-		"detail": cardToCheck.Detail})).One(&result)
+		"detail": cardToCheck.Detail}).One(&result)
 	if err == bson.ErrNotFound {
 		isUnique = true
 	}

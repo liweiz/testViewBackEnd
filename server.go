@@ -86,7 +86,9 @@ func main() {
 	// Exchange for a new set of tokens. renewTokens
 	m.Post("/users/:user_id/deviceinfo/:device_id/token")
 	// Update a user's device settings, e.g., language pair/sort option. updateDeviceInfo
-	m.Post("/users/:user_id/deviceinfo/:device_id")
+	m.Post("/users/:user_id/deviceinfo/:device_id/SortOption")
+	// Update a user's device settings, e.g., language pair/sort option. updateDeviceInfo
+	m.Post("/users/:user_id/deviceinfo/:device_id/Lang")
 	// Sync cards and user. sync
 	m.Post("/users/:user_id/sync")
 	// Update a new card. oneCard

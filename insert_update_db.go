@@ -156,8 +156,7 @@ func PrepareNonDicDocForDB(defaultDocType int, structFromReq interface{}, params
 				"detail": d.FieldByName("Card").FieldByName("Detail").String(),
 				"lastModified": time.Now().UnixNano()}
 			"$inc": bson.M{
-				"versionNo": 1}
-		}
+				"versionNo": 1}}
 	case UserNew:
 		newId = bson.NewObjectId()
 		docToSave := bson.M{
@@ -178,24 +177,21 @@ func PrepareNonDicDocForDB(defaultDocType int, structFromReq interface{}, params
 				"lastModified": time.Now().UnixNano(),
 				"activated": true}
 			"$inc": bson.M{
-				"versionNo": 1}
-		}
+				"versionNo": 1}}
 	case UserUpdateEmail:
 		docToSave := bson.M{
 			"$set": bson.M{
 				"lastModified": time.Now().UnixNano(),
 				"email": d.FieldByName("NewEmail").String()}
 			"$inc": bson.M{
-				"versionNo": 1}
-		}
+				"versionNo": 1}}
 	case UserUpdatePassword:
 		docToSave := bson.M{
 			"$set": bson.M{
 				"lastModified": time.Now().UnixNano(),
 				"password": d.FieldByName("NewPassword").String()}
 			"$inc": bson.M{
-				"versionNo": 1}
-		}
+				"versionNo": 1}}
 	case DeviceTokensNew:
 		newId = bson.NewObjectId()
 		accessToken, refreshToken := GenerateTokens(true)
@@ -217,8 +213,7 @@ func PrepareNonDicDocForDB(defaultDocType int, structFromReq interface{}, params
 				"accessToken": accessToken,
 				"refreshToken": refreshToken,
 				"accessTokenExpireAt": time.Now().UnixNano() + (3.6e+12) * 3,
-				"lastModified": time.Now().UnixNano()}
-		}
+				"lastModified": time.Now().UnixNano()}}
 	// DeviceInfo is created after user is created successfully.
 	case DeviceInfoNew:
 		newId = bson.NewObjectId()
@@ -240,15 +235,13 @@ func PrepareNonDicDocForDB(defaultDocType int, structFromReq interface{}, params
 		docToSave := bson.M{
 			"$set": bson.M{
 				"lastModified": time.Now().UnixNano(),
-				"sortOption": d.FieldByName("DeviceInfo").FieldByName("SortOption").String()}
-		}
+				"sortOption": d.FieldByName("DeviceInfo").FieldByName("SortOption").String()}}
 	case DeviceInfoUpdateLang:
 		docToSave := bson.M{
 			"$set": bson.M{
 				"lastModified": time.Now().UnixNano(),
 				"sourceLang": d.FieldByName("DeviceInfo").FieldByName("SourceLang").String(),
-				"targetLang": d.FieldByName("DeviceInfo").FieldByName("TargetLang").String()}
-		}
+				"targetLang": d.FieldByName("DeviceInfo").FieldByName("TargetLang").String()}}
 	case RequestProcessedNew:
 		newId = bson.NewObjectId()
 		docToSave := bson.M{
@@ -360,7 +353,7 @@ func PrepareDicDocForDB(defaultDocType int, card interface{}, parentId bson.Obje
 			"lastModified": now,
 			"createdBy": d.FieldByName("BelongTo").String(),
 			"childrenLastUpdatedAt": now}
-	}
+		}
 	return
 }
 

@@ -108,100 +108,134 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 					err = SetResBodyPart(v.FieldByName("UserId"), "UserId", reflect.ValueOf(params["user_id"]))
 				}
 			}
-		case oneDeviceInfo:
-			err = db.C("deviceInfos").Find(criteria).Count()
-		
+		case newDeviceInfo:
+			// The only case a new deviceInfo created by client is after signing in.
+			var newId bson.ObjectId
+			newId, err = InsertNonDicDB(DeviceInfoNew, structFromReq, db, params)
+			if !err {
+				var r DeviceInfoInCommon
+				err = db.C("deviceInfos").Find(bson.M{
+					"_id": newId}).Select(SelectDeviceInfoInCommon).One(&r)
+				if !err {
+					err = SetResBodyPart(v.FieldByName("DeviceInfo"), "DeviceInfo", reflect.ValueOf(r))
+				}
+			}
+		case oneDeviceInfoSortOption:
+			// When log in on a new device or a device that the account has been deleted before, both indicate no deviceInfo on the device, 
+			var n int
+			n, err = db.C("deviceInfos").Find(criteria).Count()
+			if n <= 0 || err {
+				var selector bson.M
+				selector, err = UpdateNonDicDB(DeviceInfoUpdateSortOption, structFromReq, db, params)
+				if !err {
+					var r DeviceInfoInCommon
+					err = db.C("deviceInfos").Find(selector).Select(SelectDeviceInfoInCommon).One(&r)
+					if !err {
+						err = SetResBodyPart(v.FieldByName("DeviceInfo"), "DeviceInfo", reflect.ValueOf(r))
+					}
+				}
+			}
+		case oneDeviceInfoLang:
+			// When log in on a new device or a device that the account has been deleted before, both indicate no deviceInfo on the device, 
+			var n int
+			n, err = db.C("deviceInfos").Find(criteria).Count()
+			if n <= 0 || err {
+				var selector bson.M
+				selector, err = UpdateNonDicDB(DeviceInfoUpdateLang, structFromReq, db, params)
+				if !err {
+					var r DeviceInfoInCommon
+					err = db.C("deviceInfos").Find(selector).Select(SelectDeviceInfoInCommon).One(&r)
+					if !err {
+						err = SetResBodyPart(v.FieldByName("DeviceInfo"), "DeviceInfo", reflect.ValueOf(r))
+					}
+				}
+			}
 		// Resetting password goes through html, not here.
 		// Activating only changes email after user being activated. It goes through html, not here, either.
 		case sync:
 			userId := bson.ObjectIdHex(params["user_id"])
 			// Sync User
 			myUser := UserInCommon
-			errUser := db.C("users").Find(bson.M{
+			err = db.C("users").Find(bson.M{
 				"_id": userId}).Select(SelectUserInCommon).One(&myUser)
-			outUser := HandleUserConflict(x.FieldByName("User").FieldByName("VersionNo").Int(), myUser)
-			if outUser == OverWriteClient {
-				if v.FieldByName("User").CanSet() {
-					v.FieldByName("User").Set(reflect.ValueOf(myUser))
-				} else {
-					errUser1 := db.C("users").Update()
-				}
-			}
-			// Sync DeviceInfo
-			myDeviceInfo := DeviceInfoInCommon
-			errDeviceInfo := db.C("deviceinfos").Find(bson.M{
-				"belongTo": params["user_id"],
-				"deviceUUID": x.FieldByName("DeviceUUID").String(),
-				"_id": x.FieldByName("DeviceInfo").FieldByName("_id")}).Select(SelectDeviceInfoInCommon).One(&myDeviceInfo)
-			outDeviceInfo := HandleDeviceInfoConflict(x.FieldByName("DeviceInfo").FieldByName("VersionNo").Int(), myDeviceInfo)
-			if outDeviceInfo == OverWriteClient {
-				if v.FieldByName("DeviceInfo").CanSet() {
-					v.FieldByName("DeviceInfo").Set(reflect.ValueOf(myDeviceInfo))
-				} else {
-					decision = InternalServerError
-				}
-			}
-			// Sync Card
-			cardListDB, errCard := GetDbCardVerList(db, userId)			
-			if errCard != nil && errCard != mgo.ErrNotFound {
-				decision = InternalServerError
-			} else {
-				// For CardList
-				errCard1 := GetCardListDifference(db, true, cardListDB, &x.FieldByName("CardList"), &v.FieldByName("CardList"), nil)
-				if errCard1 == mgo.ErrNotFound {
-					decision = InternalServerError
-				} else if errCard1 != nil {
-					// No cards on server. No need to set the CardList in response structure since it's originally nil.
-				} else {
-					errCard2 := GetCardListDifference(db, false, cardListDB, &x.FieldByName("CardList"), nil, &v.FieldByName("CardToDelete"))
-					if errCard2 != nil {
-						// ****No such card found
-						decision = InternalServerError
-					} else {
-						decision = OKAndSync
+			if !err {
+				if myUser.VersionNo > x.FieldByName("User").FieldByName("VersionNo").Int() {
+					// No need to send userInCommon to client in other cases.
+					err = SetResBodyPart(v.FieldByName("User"), "User", reflect.ValueOf(myUser))
+					if !err {
+						// Sync DeviceInfo
+						myDeviceInfo := DeviceInfoInCommon
+						err = db.C("deviceInfos").Find(bson.M{
+							"belongTo": userId,
+							"deviceUUID": x.FieldByName("DeviceUUID").String(),
+							"_id": x.FieldByName("DeviceInfo").FieldByName("_id")}).Select(SelectDeviceInfoInCommon).One(&myDeviceInfo)
+						if !err {
+							err = SetResBodyPart(v.FieldByName("DeviceInfo"), "DeviceInfo", reflect.ValueOf(myDeviceInfo))
+							if !err {
+								var cardListDB []CardsVerList
+								cardListDB, err = GetDbCardVerList(db, userId)
+								if !err {
+									err = GetCardListDifference(db, cardListDB, x.FieldByName("CardList"), v.FieldByName("CardList"), v.FieldByName("CardToDelete"))
+								}
+							}
+						}
 					}
 				}
 			}
 		case newCard:
-			// Check uniqueness first
-			if CheckCardUniqueness(db, params, x.FieldByName("Card")) {
-				// New card is unique, insert it into db.
-				docToSave := PrepareDocForDB(CardNew, x.FieldByName("Card"), nil, params)
-				dts := reflect.ValueOf(docToSave)
-				if dts.Kind() == reflect.Ptr {
-					dts = dts.Elem()
-				}
-				err := db.C("cards").Insert()
-			} else {
-				decision = ConflictCardAlreadyExists
+			var r []CardInCommon
+			var r1 []CardInCommon
+			r, r1, err = InsertNewCard(db, structFromReq, params)
+			if len(r) > 0 {
+				// Card with same content found, return this card to client.
+				err = SetResBodyPart(v.FieldByName("Cards"), "Cards", reflect.ValueOf(r))
 			}
 		case oneCard:
-			// var aCard Card
-			err := db.C("cards").Find(criteria).One(&v)
-			if err != nil {
-				decision = NotFoundOnly
-			} else {
-				// Check uniqueness first
-				CheckDocUniqueness(db, )
-				// Create
-				docToSave := PrepareDocForDB(CardNew, x.Card, nil, params)
-				dts := reflect.ValueOf(docToSave)
-				if dts.Kind() == reflect.Ptr {
-					dts = dts.Elem()
+			var t CardInCommon
+			var r []CardInCommon
+			err = db.C("cards").Find(criteria).One(&t)
+			if err == mgo.ErrNotFound {
+				// No card with this exists. It indicates the card sent from client has been deleted already. Assign a new id, if it's an update operation.
+				// Here treat it as a new card and overwrite it on client.
+				var r1 []CardInCommon
+				r, r1, err = InsertNewCard(db, structFromReq, params)
+				if len(r) > 0 {
+					err = SetResBodyPart(v.FieldByName("Cards"), "Cards", reflect.ValueOf(r))
 				}
-				if dts.Kind() == reflect.Map {
-					err1 := db.C("users").Insert(docToSave)
-					if err1 != nil {
-						decision = InternalServerError
-					} else {
-						decision = OkAndUser
+			} else if !err {
+				// Update the card according to the conflict-resolving rule.
+				decisionCode := HandleCardVersionConflict("update", x.FieldByName("Card"), t)
+				if decisionCode == ConflictCreateAnotherInDB {
+					// Check unique first and every step like insert a new card.
+					// Need to overwrite the record on client with this id as well.
+					var r1 []CardInCommon
+					r, r1, err = InsertNewCard(db, structFromReq, params)
+					if len(r) > 0 {
+						r = append(r, t)
+						err = SetResBodyPart(v.FieldByName("Cards"), "Cards", reflect.ValueOf(r))
+					} else if len(r1) > 0 {
+						// Updated content is duplicated with other existing records in db. Deliver those to client. 
+						r1 = append(r1, t)
+						// Clear potential err in previoue steps.
+						err = nil
+						err = SetResBodyPart(v.FieldByName("Cards"), "Cards", reflect.ValueOf(r1))
 					}
-				} else {
-					decision = InternalServerError
+				} else if decisionCode == NoConflictOverwriteDB {
+					// No need to check uniqueness here. If there is duplicate card in db, just let the user do what he wants.
+					var selector bson.M
+					selector, err = UpdateNonDicDB(CardUpdate, structFromReq, db, params)
+					if !err {
+						err = db.C("cards").Find(selector).Select(SelectCardInCommon).All(&r)
+						if !err {
+							err = SetResBodyPart(v.FieldByName("Cards"), "Cards", reflect.ValueOf(r))
+						}
+					}
+				} else if decisionCode == ConflictOverwriteClient {
+					r = make([]CardInCommon, 0)
+					r = append(r, t)
+					err = SetResBodyPart(v.FieldByName("Cards"), "Cards", reflect.ValueOf(r))
 				}
-				decision = HandleVersionConflict("update", &x.FieldByName("Card"), &v)
-			}
-		// No need here: case allCards:	
+			}	
 		case dict:
 			// TBD
 		default:
@@ -227,69 +261,65 @@ func GetDbCardVerList(db *mgo.Database, userId bson.ObjectId) (r []CardsVerList,
 	return
 }
 
-func GetCardListDifference(db *mgo.Database, baseIsClient bool, cardListDB []CardsVerList, cardListReq []CardsVerList, cardListRes []*CardInCommon, cardsToDelete []bson.ObjectId) (errs []error) {
-	var hasMatch bool
-	if baseIsClient == true {
-		// The difference is to overwrite/add docs on client
-		// Only non-deleted cards on db here, see PreprocessRequest.
-		for x := range cardListDB {
-			// Reset the flag
-			hasMatch = false
-			// Search if the specific id exists 
-			for y := range cardListReq {
-				if x.Id == y.Id {
-					hasMatch = true
-					if x.VersionNo == y.VersionNo {
-						// Same version, do nothing
-					} else {
-						// Overwrite the doc on client
-						err := PushCardToCardList(db, cardListRes, x.Id)
-						if err != nil {
-							if errs == nil {
-								errs = make([]error, 0)
-							}
-							errs = append(errs, err)
-						}
+func GetCardListDifference(db *mgo.Database, cardListDB []CardsVerList, cardListReq reflect.Value, cardListRes reflect.Value, cardsToDelete reflect.Value) (errs error) {
+	// cardListReq: []CardsVerList, cardListRes: []CardInCommon, cardsToDelete: []bson.ObjectId
+	// The difference is to overwrite/add docs on client
+	// Only non-deleted cards on db here, see PreprocessRequest.
+	if !cardListRes.CanSet() || !cardsToDelete.CanSet() {
+		return
+	}
+	for x := range cardListDB {
+		// Reset the flag
+		hasMatch = false
+		// Search if the specific id exists 
+		for y := 0; y < cardListReq.Len(); y++ {
+			if x.Id == bson.ObjectIdHex(cardListReq.Index(y).FielfByName("Id").String()) {
+				hasMatch = true
+				if x.VersionNo == cardListReq.Index(y).FielfByName("VersionNo").Int() {
+					// Same version, do nothing
+				} else {
+					// Overwrite the doc on client even if x.VersionNo < cardListReq.Index(y).FielfByName("VersionNo").Int() which indicates something wrong on client.
+					err := PushCardToCardList(db, cardListRes, x.Id)
+					if err != nil {
+						return
 					}
-					break
 				}
-			}
-			// If the specific id not exists, push to list
-			if hasMatch == false {
-				err := PushCardToCardList(db, cardListRes, x.Id)
-				if err != nil {
-					if errs == nil {
-						errs = make([]error, 0)
-					}
-					errs = append(errs, err)
-				}
+				break
 			}
 		}
-	} else {
-		// Just find out which ones are not on server
-		for x := range cardListReq {
-			// Search if the specific id exists 
-			for y := range cardListDB {
-				if x.Id == y.Id {
-					break
-				}
+		// If the specific id not exists, push to list
+		if hasMatch == false {
+			err := PushCardToCardList(db, cardListRes, x.Id)
+			if err != nil {
+				return
 			}
-			// If the specific id not exists, push to delete list anyway
-			cardsToDelete = append(cardsToDelete, x)
 		}
+	}
+	// Just find out which ones are not on server
+	for k := 0; k < cardListReq.Len(); k++ {
+		// Search if the specific id exists 
+		for j := range cardListDB {
+			if bson.ObjectIdHex(cardListReq.Index(k).FielfByName("Id").String()) == j.Id {
+				break
+			}
+		}
+		// If the specific id not exists, push to delete list anyway
+		cardsToDelete = reflect.Append(cardsToDelete, cardListReq.Index(k).FielfByName("Id"))
 	}
 	return
 }
 
-func PushCardToCardList(db *mgo.Database, cardList []*CardInCommon, cardID bson.ObjectId) (err error) {
+func PushCardToCardList(db *mgo.Database, cardList reflect.Value, cardID bson.ObjectId) (err error) {
+	// cardList: []CardInCommon
 	var aCard CardInCommon
 	err = db.C("cards").Find(bson.M{
-		"_id": cardID}).Select(bson.M{
+		"_id": cardID,
+		"isDeleted": false}).Select(bson.M{
 			"isDeleted": 0}).One(&aCard)
 	if !err {
-		cardList = append(cardList, &aCard)
+		cardList = reflect.Append(cardList, reflect.ValueOf(aCard))
 	}
-	// Need to make decision outside of this func according to err == mgo.ErrNotFound
+	// err == mgo.ErrNotFound is still an error here.
 	return
 }
 
@@ -313,5 +343,24 @@ func EncodeAndResponse(structInRes interface{}, rw *martini.ResponseWriter) {
 		http.Error(rw, "Encoding response body failed", StatusInternalServerError)
 	} else {
 		rw.Write(body)
+	}
+}
+
+func InsertNewCard(db *mgo.Database, structFromReq interface{}, params *martini.Params) (inserted []CardInCommon, duplicated []CardInCommon, err error) {
+	x := reflect.ValueOf(structFromReq)
+	if x.Kind() == reflect.Ptr {
+		x = x.Elem()
+	}
+	var isUnique bool
+	isUnique, duplicated, err = CheckCardUniqueness(db, params, x.FieldByName("Card"))
+	if isUnique {
+		// New card is unique, insert it into db. err == mgo.ErrNotFound
+		err = nil
+		var newId bson.ObjectId
+		newId, err = InsertNonDicDB(CardNew, structFromReq, db, params)
+		if !err {
+			err = db.C("cards").Find(bson.M{
+				"_id": newId}).Select(SelectCardInCommon).All(&inserted)
+		}
 	}
 }

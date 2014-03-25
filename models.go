@@ -89,7 +89,6 @@ type DeviceInfoInCommon struct {
 // Server side only
 type DeviceInfo struct {
 	DeviceInfoInCommon
-	// Updating tokens does not change VersionNo here.
 	LastModified int64 'bson:"lastModified" json:"lastModified"'
 }
 
@@ -124,7 +123,6 @@ type RequestProcessed struct {
 }
 
 SelectCardInCommon := bson.M{
-	"belongTo": 0,
 	"isDeleted": 0}
 
 type CardInCommon {
@@ -134,18 +132,17 @@ type CardInCommon {
 	Target string 'bson:"target" json:"target"'
 	TargetLang string 'bson:"targetLang" json:"targetLang"'
 	Translation string 'bson:"translation" json:"translation"'
-	// HasTag []string
 	Id bson.ObjectId 'bson:"_id" json:"_id"'
 	VersionNo int64 'bson:"versionNo" json:"versionNo"'
 	CollectedAt int64 'bson:"collectedAt" json:"collectedAt"'
 	LastModified int64 'bson:"lastModified" json:"lastModified"'
+	BelongTo bson.ObjectId 'bson:"belongTo" json:"belongTo"'
 }
 
 type Card struct {
 	CardInCommon
 
 	// Server side only
-	BelongTo bson.ObjectId 'bson:"belongTo" json:"belongTo"'
 	IsDeleted bool 'bson:"isDeleted" json:"isDeleted"'
 }
 

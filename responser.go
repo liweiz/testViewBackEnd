@@ -201,58 +201,7 @@ Response in summary
 */
 
 // Decisions on requests
-const (
-	// 200 ok
-	OkOnly											= iota
-	OkAndUser
-	OkAndDeviceInfo
-	OkAndCards
-	OkAndAllCards
-	// number of cards to sync(both add/update and delete) and cards
-	OkAndSync
-	// dictionaryTranslation/dictionaryTarget list
-	OkAndDictWordsList
-	OkAndDictDetailList
-	OkAndDictContextList
 
-	// 409 conflict
-	ConflictUserAlreadyExists
-	ConflictEmailAlreadyInUse
-	// For new card only
-	ConflictCardAlreadyExists
-	// conflict detail and card(s), possiblely to have two cards, on server that causes the conflict
-	ConflictDetailAndCardsOverwriteClient
-	ConflictDetailAndCardsOverwriteDB
-	ConflictDetailAndCardsCreateAnotherInDB\
-	// For DeviceInfo and User
-	OverWriteClient
-	OverWriteServer
-	OverWriteServerEmail
-
-	// 404 not found
-	NotFoundOnly
-
-	// 405 method not allowed
-	MethodNotAllowed
-
-	// 500 Internal Server Error
-	InternalServerError
-
-	// 401 unauthorized
-	UnauthorizedWithSignInReq
-	// incorrect email and/or password
-	UnauthorizedWithDetail
-	
-	// serve html
-	ActivationDone
-	ActivationNotDone
-	PasswordResettingDone
-	PasswordResettingNotDone
-
-	// potential error 
-	HasErr
-
-)
 
 // According to the decision, handle conflict, get the data needed from db and write the response.
 func GenerateResponse(decision int, message string, rw martini.ResponseWriter, structPartInRes interface{}) {

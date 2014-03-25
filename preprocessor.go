@@ -16,7 +16,9 @@ const (
 	signUp					= iota
 	signIn
 	renewTokens
-	oneDeviceInfo
+	newDeviceInfo
+	oneDeviceInfoSortOption
+	oneDeviceInfoLang
 	oneUser
 	activation
 	passwordResetting
@@ -39,12 +41,15 @@ func PreprocessRequestOut(route int, req *http.Request, params *martini.Params, 
 // Both structs of req and res are returned as pointers.
 func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx *martini.Context) (err error) {
 	m := req.Method
+	if route == oneDeviceInfoLang {
+		route = oneDeviceInfoSortOption
+	}
 	// Get request body and criteria for record(s) searching
 	switch route {
 		// Sign up
 		case signUp:
 			// Create a new user
-			// A deviceInfoInCommon is also sent from client and returned.
+			// No sync starts from client after signing up successfully. User choose the lanuage pair and send the newly created deviceInfoInCommon from client.
 			if m == "POST" {
 				reqStruct := &ReqSignUpOrIn{}
 				resStruct := &ResSignUpOrIn{}
@@ -57,8 +62,8 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 			}
 		case signIn:
 			if m == "POST" {
-				// This should be handled in token server. Do nothing here.
 				// Use martini.Context here as a vehicle to deliver tokens between tokens issued by token server and request_handler.
+				// client starts sync right after signing in successfully. If no corresponding deviceInfo on server, get the default deviceInfo with GetDefaultDeviceInfo.
 				reqStruct := &ReqSignUpOrIn{}
 				resStruct := &ResSignUpOrIn{}
 				err = GetStructFromReq(req, reqStruct)
@@ -82,13 +87,25 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 					PrepareVehicle(ctx, reqStruct, resStruct, c, nil, nil)
 				}
 			}
-		case oneDeviceInfo:
+		case newDeviceInfo:
 			if m == "POST" {
 				reqStruct := &ReqDeviceInfo{}
 				resStruct := &ResDeviceInfo{}
 				err = GetStructFromReq(req, reqStruct)
 				if !err {
 					PrepareVehicle(ctx, reqStruct, resStruct, nil, reqStruct.ReqVerNo, reqStruct.DeviceUUID)
+				}
+			}
+		case oneDeviceInfoSortOption:
+			if m == "POST" {
+				reqStruct := &ReqDeviceInfo{}
+				resStruct := &ResDeviceInfo{}
+				err = GetStructFromReq(req, reqStruct)
+				if !err {
+					c := bson.M{
+						"_id": params["device_id"],
+						"deviceUUID": reqStruct.DeviceUUID}
+					PrepareVehicle(ctx, reqStruct, resStruct, c, reqStruct.ReqVerNo, reqStruct.DeviceUUID)
 				}
 			}
 		case oneUser:
@@ -98,7 +115,7 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 				resStruct := &ResUser{}
 				err = GetStructFromReq(req, reqStruct)
 				if !err {
-					PrepareVehicle(ctx, reqStruct, resStruct, nil, , reqStruct.ReqVerNo, reqStruct.DeviceUUID)
+					PrepareVehicle(ctx, reqStruct, resStruct, nil, reqStruct.ReqVerNo, reqStruct.DeviceUUID)
 				}
 			}
 		case activation:
@@ -173,26 +190,21 @@ func PreprocessRequest(route int, req *http.Request, params *martini.Params, ctx
 			}
 		case oneCard:
 			// No need to worry about isDeleted here since the versionNo comparison will take care of that.
-			reqStruct := &ReqCard{}
 			resStruct := &ResCards{}
-			idToCheck := bson.ObjectIdHex(params["user_id"])
+			idToCheck := bson.ObjectIdHex(params["card_id"])
+			belongTo := bson.ObjectIdHex(params["user_id"])
+			c = bson.M{
+				"_id": idToCheck,
+				"belongTo": belongTo,
+				"isDeleted": false}
 			if m == "POST" {
+				reqStruct := &ReqCard{}
 				err = GetStructFromReq(req, reqStruct)
 				if !err {
-					PrepareVehicle(ctx, reqStruct, resStruct, nil, reqStruct.ReqVerNo, reqStruct.DeviceUUID)
+					PrepareVehicle(ctx, reqStruct, resStruct, c, reqStruct.ReqVerNo, reqStruct.DeviceUUID)
 				}
-			} else if m == "GET" {
-				idToCheck := bson.ObjectIdHex(params["card_id"])
-				c = bson.M{
-					"_id": idToCheck
-					// Compared with non-deleted cards only to minimize the resource needed.
-					"isDeleted": false}
+			} else if m == "GET" || m == "DELETE" {
 				PrepareVehicle(ctx, nil, resStruct, c, nil, nil)
-			} else if m == "DELETE" {
-				err = GetStructFromReq(req, reqStruct)
-				if !err {
-					PrepareVehicle(ctx, reqStruct, resStruct, nil, reqStruct.ReqVerNo, reqStruct.DeviceUUID)
-				}
 			}
 		/* 
 		The request is actually reassemmbled by server to form a query. All the information needed is delivered with the url.
