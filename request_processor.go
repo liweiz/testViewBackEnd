@@ -9,7 +9,26 @@ import (
         "net/url"
         "error"
         "reflect"
+        "encoding/json"
 )
+
+func ProcessedResponseGenerator(db *mgo.Database, route int, v *vehicle, req *http.Request, params *martini.Params, rw *martini.ResponseWriter, logger *log.Logger) {
+    err := ProcessRequest(db, route, v.Criteria, v.ReqStruct, req, v.ResStruct, params)
+    if !err {
+    	rw.Header().Set("Content-Type", "application/json")
+    	var j []byte
+    	j, err = json.Marshal(v.ReqStruct)
+    	if !err {
+    		// Response size, any usage???
+    		_, err = rw.Write(j)
+    	}
+    }
+    if err != nil {
+    	WriteLog(err.Error(), logger)
+    	http.Error(rw, err.Error(), StatusInternalServerError)
+    }
+    return
+}
 
 func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq interface{}, req *http.Request, structForRes interface{}, params *martini.Params) (err error) {
 	m := req.Method
@@ -24,19 +43,20 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 	}
 	if m == "GET" {
 		// No potential conflict
-		if route == oneCard {
+		switch route {
+		case oneCard:
 			var resultCard CardInCommon
 			err = db.C("cards").Find(criteria).Select(SelectCardInCommon).One(&resultCard)
 			if !err {
 				err = SetResBodyPart(v, "Cards", []CardInCommon{resultCard})
 			}
-		} else if route == oneUser {
+		case oneUser:
 			var resultUser UserInCommon
 			err = db.C("users").Find(criteria).Select(SelectUserInCommon).One(&resultUser)
 			if !err {
 				err = SetResBodyPart(v, "User", resultUser)
 			}
-		} else if {
+		case oneDeviceInfo:
 			var resultDeviceInfo DeviceInfoInCommon
 			err := db.C("deviceInfos").Find(bson.M{
 				"belongTo": params["user_id"],
@@ -45,6 +65,10 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 			if !err {
 				err = SetResBodyPart(v, "DeviceInfo", resultDeviceInfo)
 			}
+		// case dicTranslation:
+		// case dicDetail:
+		default:
+			err = error.New("Request not recogniized.")
 		}
 	} else if m == "POST" {
 		switch route {
@@ -157,7 +181,8 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 			// Sync User
 			myUser := UserInCommon
 			err = db.C("users").Find(bson.M{
-				"_id": userId}).Select(SelectUserInCommon).One(&myUser)
+				"_id": userId,
+				"isDeleted": false}).Select(SelectUserInCommon).One(&myUser)
 			if !err {
 				if myUser.VersionNo > x.FieldByName("User").FieldByName("VersionNo").Int() {
 					// No need to send userInCommon to client in other cases.
@@ -237,15 +262,34 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 				}
 			}	
 		case dict:
-			// TBD
+			// For words only. Client posts WordsText to exchange its id and translation/target list.
+			// var r []DicTextInCommon
+			// err = db.C("cards").Find(criteria).Select(SelectDicInCommon).All(&r)
+			// if !err {
+				
+			// }
 		default:
 			e = error.New("Request not recogniized.")
 	} else if m == "DELETE" {
 		// One case only: DELETE /users/:user_id/cards/:card_id
 		if route == oneCard {
-			decision = HandleVersionConflict("delete", &x.FieldByName("Card"), &v)
+			var t CardInCommon
+			var r []CardInCommon
+			err = db.C("cards").Find(criteria).One(&t)
+			if err == mgo.ErrNotFound {
+				// Return ok since no such card exists among non-deleted ones.
+			} else if !err {
+				decisionCode := HandleCardVersionConflict("delete", x.FieldByName("Card"), t)
+				if decisionCode == NoConflictOverwriteDB {
+					err = db.C("cards").Remove(criteria)
+				} else if decisionCode == ConflictOverwriteClient {
+					r = make([]CardInCommon, 0)
+					r = append(r, t)
+					err = SetResBodyPart(v.FieldByName("Cards"), "Cards", reflect.ValueOf(r))
+				}
+			}	
 		} else {
-			decision = MethodNotAllowed
+			e = error.New("Request not recogniized.")
 		}
 	}
 	return

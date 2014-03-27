@@ -1,15 +1,3 @@
-package testView
-
-import (
-		"github.com/codegangsta/martini"
-		"labix.org/v2/mgo"
-        "labix.org/v2/mgo/bson"
-        "encoding/json"
-        "net/http"
-        "string"
-        "reflect"
-)
-
 /*
 Routes:
 
@@ -199,51 +187,3 @@ Response in summary
 1.6.1	show an html page states the success of the resetting
 1.6.2 	show an error message on the html resetting page
 */
-
-// Decisions on requests
-
-
-// According to the decision, handle conflict, get the data needed from db and write the response.
-func GenerateResponse(decision int, message string, rw martini.ResponseWriter, structPartInRes interface{}) {
-	rw := martini.NewResponseWriter()
-	rw.Header().Set("Content-Type", "application/json")
-	switch decision {
-		case OkOnly:
-			rw.WriteHeader(StatusOK)
-		case OkAndUser:
-			var user User
-			
-			EncodeAndResponse(err, user)
-		case OkAndCard:
-			var card Card
-			err := db.C("cards").Find(criteria).One(&card)
-			EncodeAndResponse(err, card)
-		case OkAndAllCards:
-			var cards []Card{}
-			err := db.C("cards").Find(criteria).All(&cards)
-			EncodeAndResponse(err, cards)
-		case OkAndSync:
-			// There are one slice for add/update and another for delete
-			// Iterate the add/update one first
-
-			// And iterate the delete one
-
-		case OkAndDictWordsList:
-		case OkAndDictDetailList:
-		case OkAndDictContextList:
-		case ConflictUserAlreadyExists:
-		case ConflictEmailAlreadyInUse:
-		case ConflictDetailAndCardsOverwriteClient:
-		case ConflictDetailAndCardsOverwriteDB:
-		case ConflictDetailAndCardsCreateAnotherInDB:
-		case NotFoundOnly:
-		case MethodNotAllowed:
-		case InternalServerError:
-		case UnauthorizedWithSignInReq:
-		case UnauthorizedWithDetail:
-	}
-}
-
-
-
-

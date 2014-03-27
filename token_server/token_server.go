@@ -48,29 +48,3 @@ func NewServerConfig() *ServerConfig {
         AllowGetAccessRequest:     false
     }
 }
-
-// Parse basic authentication header
-type AuthInHeader struct {
-    AuthType string
-    Email string
-    Password string
-    Token string
-}
-
-
-// AccessTokenGen generates access tokens
-type TokensGen interface {
-    GenerateTokens(generateRefresh bool) (accessToken string, refreshToken string, err error)
-}
-
-// GenerateAccessToken generates base64-encoded UUID access and refresh tokens
-func GenerateTokens(generateRefresh bool) (accessToken string, refreshToken string) {
-    accessToken = uuid.New()
-    accessToken = base64.StdEncoding.EncodeToString([]byte(accessToken))
-
-    if generateRefresh {
-        refreshToken = uuid.New()
-        refreshToken = base64.StdEncoding.EncodeToString([]byte(refreshToken))
-    }
-    return
-}

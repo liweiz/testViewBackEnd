@@ -17,6 +17,7 @@ const (
 	signIn
 	renewTokens
 	newDeviceInfo
+	oneDeviceInfo
 	oneDeviceInfoSortOption
 	oneDeviceInfoLang
 	oneUser
@@ -30,7 +31,7 @@ const (
 	dicDetail
 )
 
-func PreprocessRequestOut(route int, req *http.Request, params *martini.Params, ctx *martini.Context, logger *log.Logger, rw *martini.ResponseWriter) {
+func RequestPreprocessor(route int, req *http.Request, params *martini.Params, ctx *martini.Context, logger *log.Logger, rw *martini.ResponseWriter) {
 	err := PreprocessRequest(route, req, params, ctx)
 	if err != nil {
 		HandleReqBodyError(err, logger, rw)
@@ -331,7 +332,7 @@ func PrepareVehicleSync(ctx martini.Context, reqS interface{}, resS interface{},
 	v.Criteria3 = c3
 	v.ReqVerNo = reqVerNo
 	v.deviceUUID = deviceUUID
-	ctx.MapTo(v, Vehicle{})
+	ctx.MapTo(v, (*Vehicle)(nil))
 }
 
 func GetVehicleContentInContext(ctx martini.Context, fieldName string) *reflect.Value {

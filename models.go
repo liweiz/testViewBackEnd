@@ -90,6 +90,11 @@ type DeviceInfoInCommon struct {
 type DeviceInfo struct {
 	DeviceInfoInCommon
 	LastModified int64 'bson:"lastModified" json:"lastModified"'
+	// Save search result for each tier and serve by pagination. No tier1 here since tier1 is just one words. Overwrite corresponding tier when new search is triggered by client. Meanwhile, clear up the sibling tiers if there is any. The result is sorted by the device's sortOption stored.
+	// Change on these does not update lastModified in DeviceInfo.
+	DicTier2 []DicTextInRes 'bson:"dicTier2" json:"dicTier2"'
+	DicTier3 []DicTextInRes 'bson:"dicTier3" json:"dicTier3"'
+	DicTier4 []DicTextInRes 'bson:"dicTier4" json:"dicTier4"'
 }
 
 // Server side only
@@ -146,9 +151,24 @@ type Card struct {
 	IsDeleted bool 'bson:"isDeleted" json:"isDeleted"'
 }
 
-/*
+SelectDicInCommon := bson.M{
+	"_id": 1,
+	"textType": 1,
+	"text": 1,
+	"textLength": 1,
+	"createdAt": 1,
+	"childrenLastUpdatedAt": 1}
 
-*/
+type DicTextInCommon struct {
+	Id bson.ObjectId 'bson:"_id" json:"_id"'
+	// 1: context, 2: target, 3: translation, 4: detail
+	TextType int 'bson:"textType" json:"textType"'
+	Text string 'bson:"text" json:"text"'
+	TextLength int 'bson:"textLength" json:"textLength"'
+	CreatedAt int64 'bson:"createdAt" json:"createdAt"'
+	ChildrenLastUpdatedAt int64 'bson:"childrenLastUpdatedAt" json:"childrenLastUpdatedAt"'
+}
+
 type DicText struct {
 	Id bson.ObjectId 'bson:"_id" json:"_id"'
 	SourceLang string 'bson:"sourceLang" json:"sourceLang"'

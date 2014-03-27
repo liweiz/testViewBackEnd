@@ -12,12 +12,28 @@ import (
         "errors"
 )
 
-func ValidatePrimaryAuth(db *mgo.Database, r *http.Request) (err error, isValid bool) { 
-    auth, err1 := GetAuthInHeader(r)
-    err = err1
-    if err == nil {
-        err2, isMatched := MatchPrimaryAuth(auth, db)
-        err = err2
+func PrimaryAuthHandler(db *mgo.Database, r *http.Request, rw *martini.ResponseWriter, logger *log.Logger) {
+    isValid, err := ValidatePrimaryAuth(db, r)
+    if !isValid {
+        if err != nil {
+            WriteLog(err.Error(), logger)
+            if err.Error() == "Incorrect password" || err.Error() == "Token expired" {
+                http.Error(rw, err.Error(), StatusUnauthorized)
+            } else if err.Error() == "Invalid authorization header" {
+                http.Error(rw, err.Error(), StatusBadRequest)
+            } else {
+                http.Error(rw, err.Error(), StatusInternalServerError)
+            }
+        }
+    }
+}
+
+func ValidatePrimaryAuth(db *mgo.Database, r *http.Request) (isValid bool, err error) { 
+    var auth *AuthInHeader
+    auth, err := GetAuthInHeader(r)
+    if !err {
+        var isMatched bool
+        isMatched, err = MatchPrimaryAuth(auth, db)
         if isMatched {
             isValid = true
         }
@@ -26,10 +42,10 @@ func ValidatePrimaryAuth(db *mgo.Database, r *http.Request) (err error, isValid 
 }
 
 // PrimaryAuth means password or accessToken. isMatched simply means it is the same as the one stored in db. But it may already be expired.
-func MatchPrimaryAuth(auth *AuthInHeader, db *mgo.Database) (err error, isMatched bool) {
+func MatchPrimaryAuth(auth *AuthInHeader, db *mgo.Database) (isMatched bool, err error) {
     if auth.AuthType == "Basic" {
         err = db.C("users").Find(bson.M{"email": auth.Email}).One(&user)
-        if err == nil {
+        if !err {
             if auth.Password == user.Password {
                 isMatched = true
             } else {
@@ -42,7 +58,7 @@ func MatchPrimaryAuth(auth *AuthInHeader, db *mgo.Database) (err error, isMatche
         err = db.C("deviceTokens").Find(bson.M{"accessToken": auth.AccessToken}).One(&myDeviceTokens)
         // AccessToken exists, check expiration next.
         // AccessToken expired, check JSON body for refresh token, ask for refreshToken. This occurs at URL: /users/:user_id/deviceinfo/:device_id/token, case renewTokens. "Access token expired. Refresh token needed"
-        if err == nil {
+        if !err {
             if CheckTokenExpiration(myDeviceTokens) {
                 err = errors.New("Token expired")
             } else {
@@ -66,25 +82,47 @@ func GetAuthInHeader(r *http.Request) (a *AuthInHeader, err error) {
     auth := r.Header.Get("Authorization")
     if auth != "" {
         s := strings.SplitN(auth, " ", 2)
-        if len(s) != 2 {
-            err = errors.New("Invalid authorization header")
-        } else if s[0] == "Basic" {
-            b, err := base64.StdEncoding.DecodeString(s[1])
-            if err != nil {
-                return nil, err
+        if s[0] == "Basic" {
+            var b []byte
+            b, err = base64.StdEncoding.DecodeString(s[1])
+            if !err {
+                pair := strings.SplitN(string(b), ":", 2)
+                if len(pair) == 2 {
+                    a = &AuthInHeader{AuthType: s[0], Email: pair[0], Password: pair[1]}
+                    return
+                }
             }
-            pair := strings.SplitN(string(b), ":", 2)
-            if len(pair) != 2 {
-                return nil, errors.New("Invalid authorization message")
-            }
-            return &AuthInHeader{AuthType: s[0], Email: pair[0], Password: pair[1]}, nil
         } else if s[0] == "Bearer" {
-            return &AuthInHeader{AuthType: s[0], Token: s[1]}, nil
-        } else {
-            return nil, errors.New("Invalid authorization header")
+            a = &AuthInHeader{AuthType: s[0], Token: s[1]}
+            return
         }
-    } else {
+    }
+    if err == nil {
         err = errors.New("Invalid authorization header")
+    }
+    return
+}
+
+// Parse basic authentication header
+type AuthInHeader struct {
+    AuthType string
+    Email string
+    Password string
+    Token string
+}
+
+// AccessTokenGen generates access tokens
+type TokensGen interface {
+    GenerateTokens(generateRefresh bool) (accessToken string, refreshToken string, err error)
+}
+
+// GenerateAccessToken generates base64-encoded UUID access and refresh tokens
+func GenerateTokens(generateRefresh bool) (accessToken string, refreshToken string) {
+    accessToken = uuid.New()
+    accessToken = base64.StdEncoding.EncodeToString([]byte(accessToken))
+    if generateRefresh {
+        refreshToken = uuid.New()
+        refreshToken = base64.StdEncoding.EncodeToString([]byte(refreshToken))
     }
     return
 }

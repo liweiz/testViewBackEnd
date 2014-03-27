@@ -41,6 +41,9 @@ const (
 	DeviceInfoNew
 	DeviceInfoUpdateSortOption
 	DeviceInfoUpdateLang
+	DeviceInfoUpdateDicTier2
+	DeviceInfoUpdateDicTier3
+	DeviceInfoUpdateDicTier4
 	RequestProcessedNew
 	DicTextContextNew
 	DicTextTargetNew
@@ -230,7 +233,10 @@ func PrepareNonDicDocForDB(defaultDocType int, structFromReq interface{}, params
 			"sortOption": "ByLastModifiedDescending",
 
 			// Non DeviceInfoInCommon part
-			"lastModified": time.Now().UnixNano()}
+			"lastModified": time.Now().UnixNano(),
+			"dicTier2": "",
+			"dicTier3": "",
+			"dicTier4": ""}
 	case DeviceInfoUpdateSortOption:
 		docToSave := bson.M{
 			"$set": bson.M{
@@ -449,3 +455,26 @@ func CRUDOneDoc(action string, db *mgo.Database, doc interface{}, criteria bson.
 	}
 	return
 }
+
+func PrepareDicResultDocForDB(defaultDocType int, structFromReq interface{}, params *martini.Params) (docToSave interface{}, newId bson.ObjectId, err error) {
+	d := reflect.ValueOf(structFromReq)
+	if d.Kind() == reflect.Ptr {
+		d = d.Elem()
+	}
+	switch defaultDocType {
+	
+	case DeviceInfoUpdateDicTier2:
+		docToSave := bson.M{
+			"$set": bson.M{
+				"dicTier2": ""}
+	
+	default:
+		err = errors.New("No matched document type for dicResult database.")
+	}
+	return
+}
+
+// func GetSortedDicResult(db *mgo.Database, dicName string, idToSearch bson.ObjectId, sortOption string) (result []DicTextInRes) {
+// 	if sortOption
+// 	db.C(dicName).Find(bson.M{"belongToParent": idToSearch}).Sort().Select(bson.M{"_id": 1, "text": 1, "childrenLastUpdatedAt": 1}).All(&result)
+// }
