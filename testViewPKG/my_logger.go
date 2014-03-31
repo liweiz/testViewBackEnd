@@ -2,21 +2,20 @@ package testView
 
 import (
 	"log"
-	"net/http"
-	"time"
 	"os"
 )
 
 // filName should be called: localServerLog
-func PrepareServerLogger(fileName string,) (logger *log.Logger, err error) {
+func PrepareServerLogger(fileName string) (logger *log.Logger, err error) {
 	if !LogFileAlreadyExists(fileName) {
 		err = CreateLogFile(fileName)
 		if err != nil {
 			return
 		}
 	}
-	myFile, err = os.OpenFile(name, O_RDWR, 0666)
-	if !err {
+	var myFile *os.File
+	myFile, err = os.OpenFile(fileName, os.O_RDWR, 0666)
+	if err == nil {
 		logger = log.New(myFile, "[pLang] ", 0)
 		defer myFile.Close()
 	}
@@ -28,20 +27,20 @@ func WriteLog(content string, logger *log.Logger) {
 }
 
 func LogFileAlreadyExists(name string) bool {
-    _, err := os.Stat(name)
-    if err != nil {
-       if os.IsNotExist(err) {
-            return false
-        }
-    }
-    return true
+	_, err := os.Stat(name)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+	}
+	return true
 }
 
 func CreateLogFile(name string) error {
-    f, err := os.Create(name)
-    if err != nil {
-        return err
-    }
-    defer f.Close()
-    return nil
+	f, err := os.Create(name)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return nil
 }

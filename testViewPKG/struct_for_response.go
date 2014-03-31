@@ -1,12 +1,8 @@
 package testView
 
-import {
-	"encoding/json"
-	"net/http"
-    "reflect"
-	"github.com/codegangsta/martini"
-    "labix.org/v2/mgo"
-}
+import (
+	"labix.org/v2/mgo/bson"
+)
 
 /*
 Response body structure(JSON):
@@ -26,7 +22,7 @@ Request:
     	"id": string,
     	"versionNo": number
     },
-    
+
     "card": {
 		"belongTo": string,
     	"collectedAt": number,
@@ -65,7 +61,7 @@ Sync request:
         "id": string,
         "versionNo": number
     },
-    
+
     "cardList": {
         "id": versionNo
     },
@@ -85,7 +81,7 @@ Response:
         "id": string,
         "versionNo": number
     },
-    
+
     "cardToCreate": [
         {
             "belongTo": string,
@@ -143,71 +139,71 @@ Response:
 */
 
 type CardToDeleteInRes struct {
-    ID bson.ObjectId
-    VersionNo int64
+	ID        bson.ObjectId
+	VersionNo int64
 }
 
 type ResSignUpOrIn struct {
-    User UserInCommon
-    Tokens TokensInCommon
+	User   UserInCommon
+	Tokens TokensInCommon
 }
 
 // RequestVersionNo is used to solve the online/offline sync issue. Tokens is an exception since there is no need to sync tokens, only getting new tokens is needed. Therefore, VersionNo is not necessary here, either.
 // Request related to Tokens is proceeded indenpendently with user/card.
 type ResTokensOnly struct {
-    /*
-    Two possible situations:
-    1. user info already exists on client
-    2. no user info on client
-    There is no easy way to tell which situation is on client. So leave that part for sync request sent by client. A sync request follows the successful login response immediately.
-    */
-    UserId string
-    Tokens TokensInCommon
-    // No RequestVersionNo here. Tokens are not compared by VersionNo/RequestVersionNo. They are compared directly.
-    // No need to have user_id as well. Coz a given set of tokens are only valid with one device and user. If anything goes wrong, simply ask the user to login will do.
+	/*
+	   Two possible situations:
+	   1. user info already exists on client
+	   2. no user info on client
+	   There is no easy way to tell which situation is on client. So leave that part for sync request sent by client. A sync request follows the successful login response immediately.
+	*/
+	UserId string
+	Tokens TokensInCommon
+	// No RequestVersionNo here. Tokens are not compared by VersionNo/RequestVersionNo. They are compared directly.
+	// No need to have user_id as well. Coz a given set of tokens are only valid with one device and user. If anything goes wrong, simply ask the user to login will do.
 }
 
 // Sync user
 type ResUser struct {
-    User UserInCommon
+	User UserInCommon
 }
 
 type ResResetPassword struct {
-    PasswordIsResetted bool
+	PasswordIsResetted bool
 }
 
 type ResActivation struct {
-    IsActivatedThisTime bool
+	IsActivatedThisTime bool
 }
 
 type ResDeviceInfo struct {
-    DeviceInfo DeviceInfoInCommon
+	DeviceInfo DeviceInfoInCommon
 }
 
 // For full card info returned in res
 type ResCards struct {
-    Cards []CardInCommon
+	Cards []CardInCommon
 }
 
 type ResSync struct {
-    User UserInCommon
-    DeviceInfo DeviceInfoInCommon
-    CardList []CardInCommon
-    CardToDelete []bson.ObjectId
+	User         UserInCommon
+	DeviceInfo   DeviceInfoInCommon
+	CardList     []CardInCommon
+	CardToDelete []bson.ObjectId
 }
 
 type ResFail struct {
-    FailedReason string
+	FailedReason string
 }
 
-type DicTextInRes {
-    Id string
-    Text string
-    ChildrenUpdatedAt int64
+type DicTextInRes struct {
+	Id                string
+	Text              string
+	ChildrenUpdatedAt int64
 }
 
 type ResDicResults struct {
-    // Level: translation/detail/context
-    Level string
-    Results []DicTextInRes
+	// Level: translation/detail/context
+	Level   string
+	Results []DicTextInRes
 }
