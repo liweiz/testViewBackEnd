@@ -1,13 +1,13 @@
 package main
 
 import (
-	"fmt"
-	"github.com/codegangsta/martini"
-	"io"
+	//"fmt"
+	"github.com/go-martini/martini"
+	//"io"
 	"labix.org/v2/mgo"
 	"me/testView/handlers"
-	"net/http"
-	"net/http/httptest"
+	//"net/http"
+	//"os"
 )
 
 func DB() martini.Handler {
@@ -29,30 +29,15 @@ type MyMartini struct {
 	martini.Router
 }
 
-func TestPostRequest(url string, body io.Reader, handlers []martini.Handler) {
-	m := My()
-	for x := range handlers {
-		m.Use(handlers[x])
-	}
-	req, _ := http.NewRequest("POST", url, body)
-	w := httptest.NewRecorder()
-	m.ServeHTTP(w, req)
-	fmt.Println(w.Code)
-	fmt.Println(w.Body.String())
-}
-
 func My() *MyMartini {
 	m := martini.New()
 	r := martini.NewRouter()
-
 	// Setup middleware
 	m.Use(martini.Logger())
 	m.Use(martini.Recovery())
 	m.Use(DB())
+	m.Use(r.Handle)
 	m.MapTo(r, (*martini.Routes)(nil))
-
-	// Add the router action
-	m.Action(r.Handle)
 	return &MyMartini{m, r}
 }
 
@@ -71,23 +56,23 @@ func main() {
 
 	// Exchange for a new set of tokens. renewTokens
 	m := My()
-	m.Post("/users/:user_id/deviceinfo/:device_id/token", testView.ReqIdChecker(), testView.RequestPreprocessor(), testView.ProcessedResponseGenerator())
-	// Update a user's device settings, e.g., language pair/sort option. updateDeviceInfo
-	m.Post("/users/:user_id/deviceinfo/:device_id/SortOption", testView.ReqIdChecker(), testView.RequestPreprocessor(), testView.ProcessedResponseGenerator())
-	// Update a user's device settings, e.g., language pair/sort option. updateDeviceInfo
-	m.Post("/users/:user_id/deviceinfo/:device_id/Lang", testView.ReqIdChecker(), testView.RequestPreprocessor(), testView.ProcessedResponseGenerator())
+	m.Post("/users/:user_id/deviceinfo/:device_id/token", testView.RequestPreprocessor(testView.RenewTokens), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.RenewTokens, false))
+	// Update a user's device settings, e.g., language pair/sort option. OneDeviceInfoSortOption
+	m.Post("/users/:user_id/deviceinfo/:device_id/SortOption", testView.RequestPreprocessor(testView.OneDeviceInfoSortOption), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.OneDeviceInfoSortOption, false))
+	// Update a user's device settings, e.g., language pair/sort option. OneDeviceInfoLang
+	m.Post("/users/:user_id/deviceinfo/:device_id/Lang", testView.RequestPreprocessor(testView.OneDeviceInfoLang), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.OneDeviceInfoLang, false))
 	// Sync cards and user. sync
-	m.Post("/users/:user_id/sync", testView.ReqIdChecker(), testView.RequestPreprocessor(), testView.ProcessedResponseGenerator())
+	m.Post("/users/:user_id/sync", testView.RequestPreprocessor(testView.Sync), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.Sync, false))
 	// Update a new card. oneCard
-	m.Post("/users/:user_id/cards/:card_id", testView.ReqIdChecker(), testView.RequestPreprocessor(), testView.ProcessedResponseGenerator())
+	m.Post("/users/:user_id/cards/:card_id", testView.RequestPreprocessor(testView.OneCard), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.OneCard, true))
 	// Create a new card. newCard
-	m.Post("/users/:user_id/cards", testView.ReqIdChecker(), testView.RequestPreprocessor(), testView.ProcessedResponseGenerator())
+	m.Post("/users/:user_id/cards", testView.RequestPreprocessor(testView.NewCard), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.NewCard, true))
 	// Change a user's email. oneUser
-	m.Post("/users/:user_id", testView.ReqIdChecker(), testView.RequestPreprocessor(), testView.ProcessedResponseGenerator())
+	m.Post("/users/:user_id", testView.RequestPreprocessor(testView.OneUser), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.OneUser, false))
 	// User signs in. signIn
-	m.Post("/users/signin", testView.ReqIdChecker(), testView.RequestPreprocessor(), testView.ProcessedResponseGenerator())
+	m.Post("/users/signin", testView.RequestPreprocessor(testView.SignIn), testView.ProcessedResponseGenerator(testView.SignIn, false))
 	// Sign up a new user. signUp
-	m.Post("/users", testView.ReqIdChecker(), testView.RequestPreprocessor(), testView.ProcessedResponseGenerator())
+	m.Post("/users", testView.RequestPreprocessor(testView.SignUp), testView.ProcessedResponseGenerator(testView.SignUp, false))
 
 	// Get a card. oneCard
 	//m.Get("/users/:user_id/cards/:card_id")
@@ -97,7 +82,7 @@ func main() {
 	//m.Get("/users/:user_id/passwordresetting/:passwordresetting_code")
 
 	// Delete a card. oneCard
-	m.Delete("/users/:user_id/cards/:card_id", testView.ReqIdChecker(), testView.RequestPreprocessor(), testView.ProcessedResponseGenerator())
+	m.Delete("/users/:user_id/cards/:card_id", testView.RequestPreprocessor(testView.OneCard), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.OneCard, true))
 	// Get all cards
 	// m.Get("/users/:user_id/cards")
 
@@ -106,7 +91,7 @@ func main() {
 	// Get detail list based on words and translation. dicTranslation
 	//m.Get("/dic/:sourcelang/:targetlang/:words_id/:translation_id")
 	// Get translation list based on words. dicWords
-	m.Post("/dic/:sourcelang/:targetlang", testView.ReqIdChecker(), testView.RequestPreprocessor(), testView.ProcessedResponseGenerator())
+	m.Post("/dic/:sourcelang/:targetlang", testView.RequestPreprocessor(testView.DicWords), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.DicWords, false))
 
 	m.Run()
 }

@@ -2,7 +2,7 @@ package testView
 
 import (
 	"errors"
-	"github.com/codegangsta/martini"
+	"github.com/go-martini/martini"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"reflect"
@@ -50,44 +50,6 @@ func HandleCardVersionConflict(action string, docFromReq interface{}, docFromDB 
 	} else if dv < rv {
 		// Impossible. If this does happens, overwrite the client anyway.
 		decisionCode = ConflictOverwriteClient
-	}
-	return
-}
-
-func SetDeviceTokens(db *mgo.Database, structFromReq interface{}, params martini.Params) (tokens TokensInCommon, err error) {
-	x := reflect.ValueOf(structFromReq)
-	if x.Kind() == reflect.Ptr {
-		x = x.Elem()
-	}
-	var newId bson.ObjectId
-	if params["user_id"] == "" {
-		// SignUp, must create a new deviceTokens in db.
-		newId, err = InsertNonDicDB(DeviceTokensNew, structFromReq, db, params)
-		if err == nil {
-			err = db.C("deviceTokens").Find(bson.M{"_id": newId}).Select(SelectDeviceTokensInCommon).One(&tokens)
-		}
-	} else {
-		// Get it from url.
-		userId := bson.ObjectIdHex(params["user_id"])
-		if err == nil {
-			selector := bson.M{
-				// UUID is available in both ReqSignUpOrIn and ReqRenewTokens.
-				"deviceUUID": x.FieldByName("DeviceUUID").String(),
-				"belongTo":   userId}
-			_, err = db.C("deviceTokens").Find(selector).Count()
-			if err == nil {
-				var selector1 bson.M
-				selector1, err = UpdateNonDicDB(DeviceTokensUpdateTokens, structFromReq, db, params)
-				if err == nil {
-					err = db.C("deviceTokens").Find(selector1).Select(SelectDeviceTokensInCommon).One(&tokens)
-				}
-			} else {
-				newId, err = InsertNonDicDB(DeviceTokensNew, structFromReq, db, params)
-				if err == nil {
-					err = db.C("deviceTokens").Find(bson.M{"_id": newId}).Select(SelectDeviceTokensInCommon).One(&tokens)
-				}
-			}
-		}
 	}
 	return
 }

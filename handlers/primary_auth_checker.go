@@ -3,7 +3,7 @@ package testView
 import (
 	"encoding/base64"
 	"errors"
-	"github.com/codegangsta/martini"
+	"github.com/go-martini/martini"
 	"github.com/twinj/uuid"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
@@ -13,7 +13,14 @@ import (
 	"time"
 )
 
-func PrimaryAuthHandler(db *mgo.Database, r *http.Request, rw martini.ResponseWriter, logger *log.Logger) {
+// GateKeeper is not needed for signUp/signIn.
+func GateKeeper() martini.Handler {
+	return func(db *mgo.Database, r *http.Request, rw http.ResponseWriter, logger *log.Logger) {
+		PrimaryAuthHandler(db, r, rw, logger)
+	}
+}
+
+func PrimaryAuthHandler(db *mgo.Database, r *http.Request, rw http.ResponseWriter, logger *log.Logger) {
 	isValid, err := ValidatePrimaryAuth(db, r)
 	if !isValid {
 		if err != nil {

@@ -3,36 +3,38 @@ package testView
 import (
 	"encoding/json"
 	"errors"
-	"github.com/codegangsta/martini"
+	"github.com/go-martini/martini"
+	// "io/ioutil"
 	"labix.org/v2/mgo/bson"
 	"log"
 	"net/http"
+	// "os"
 	"reflect"
 )
 
 // Route categories
 const (
-	signUp = iota
-	signIn
-	renewTokens
-	newDeviceInfo
-	oneDeviceInfo
-	oneDeviceInfoSortOption
-	oneDeviceInfoLang
-	oneUser
-	activation
-	passwordResetting
-	sync
-	newCard
-	oneCard
-	dicWords
-	dicTranslation
-	dicDetail
-	dicContext
+	SignUp = iota
+	SignIn
+	RenewTokens
+	NewDeviceInfo
+	OneDeviceInfo
+	OneDeviceInfoSortOption
+	OneDeviceInfoLang
+	OneUser
+	Activation
+	PasswordResetting
+	Sync
+	NewCard
+	OneCard
+	DicWords
+	DicTranslation
+	DicDetail
+	DicContext
 )
 
-func RequestPreprocessor() martini.Handler {
-	return func(route int, req *http.Request, params martini.Params, ctx martini.Context, logger *log.Logger, rw martini.ResponseWriter) {
+func RequestPreprocessor(route int) martini.Handler {
+	return func(req *http.Request, params martini.Params, ctx martini.Context, logger *log.Logger, rw http.ResponseWriter) {
 		err := PreprocessRequest(route, req, params, ctx)
 		if err != nil {
 			HandleReqBodyError(err, logger, rw)
@@ -44,13 +46,13 @@ func RequestPreprocessor() martini.Handler {
 // Both structs of req and res are returned as pointers.
 func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx martini.Context) (err error) {
 	m := req.Method
-	if route == oneDeviceInfoLang {
-		route = oneDeviceInfoSortOption
+	if route == OneDeviceInfoLang {
+		route = OneDeviceInfoSortOption
 	}
 	// Get request body and criteria for record(s) searching
 	switch route {
 	// Sign up
-	case signUp:
+	case SignUp:
 		// Create a new user
 		// No sync starts from client after signing up successfully. User choose the lanuage pair and send the newly created deviceInfoInCommon from client.
 		if m == "POST" {
@@ -63,7 +65,7 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 				PrepareVehicle(ctx, reqStruct, resStruct, c, "", "")
 			}
 		}
-	case signIn:
+	case SignIn:
 		if m == "POST" {
 			// Use martini.Context here as a vehicle to deliver tokens between tokens issued by token server and request_handler.
 			// client starts sync right after signing in successfully. If no corresponding deviceInfo on server, get the default deviceInfo with GetDefaultDeviceInfo.
@@ -71,12 +73,17 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 			resStruct := &ResSignUpOrIn{}
 			err = GetStructFromReq(req, reqStruct)
 			if err == nil {
-				c := bson.M{
-					"email": reqStruct.Email}
-				PrepareVehicle(ctx, reqStruct, resStruct, c, "", "")
+				u, err := GetAuthInHeader(req)
+				reqStruct.Email = u.Email
+				reqStruct.Password = u.Password
+				if err == nil {
+					c := bson.M{
+						"email": reqStruct.Email}
+					PrepareVehicle(ctx, reqStruct, resStruct, c, "", "")
+				}
 			}
 		}
-	case renewTokens:
+	case RenewTokens:
 		if m == "POST" {
 			reqStruct := &ReqRenewTokens{}
 			resStruct := &ResTokensOnly{}
@@ -90,7 +97,7 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 				PrepareVehicle(ctx, reqStruct, resStruct, c, "", "")
 			}
 		}
-	case newDeviceInfo:
+	case NewDeviceInfo:
 		if m == "POST" {
 			reqStruct := &ReqDeviceInfo{}
 			resStruct := &ResDeviceInfo{}
@@ -99,7 +106,7 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 				PrepareVehicle(ctx, reqStruct, resStruct, nil, reqStruct.RequestId, reqStruct.DeviceUUID)
 			}
 		}
-	case oneDeviceInfoSortOption:
+	case OneDeviceInfoSortOption:
 		if m == "POST" {
 			reqStruct := &ReqDeviceInfo{}
 			resStruct := &ResDeviceInfo{}
@@ -111,7 +118,7 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 				PrepareVehicle(ctx, reqStruct, resStruct, c, reqStruct.RequestId, reqStruct.DeviceUUID)
 			}
 		}
-	case oneUser:
+	case OneUser:
 		// No deleted user currently. If there is delete option for user, there should be a specific criteria bson.M for user operation.
 		if m == "POST" {
 			reqStruct := &ReqUser{}
@@ -121,7 +128,7 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 				PrepareVehicle(ctx, reqStruct, resStruct, nil, reqStruct.RequestId, reqStruct.DeviceUUID)
 			}
 		}
-	case activation:
+	case Activation:
 		// Should serve html here
 		// Send an email with the activation link. E.g., http://www.xxx.com/:user_id/activaation/:activation_code
 		if m == "GET" {
@@ -139,7 +146,7 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 				"_id": idToCheck}
 			PrepareVehicle(ctx, nil, resStruct, c, "", "")
 		}
-	case passwordResetting:
+	case PasswordResetting:
 		// Should serve html here
 		// Send an email with the password resetting link. E.g., http://www.xxx.com/users/:user_id/passwordresetting/:passwordresetting_code, :passwordresetting_code is used as a unique one time location to reset the password. The location is only valid once. Once being loaded, it becomes invalid. Therefore, to reset password again, user has to use the client to send another email with a new link to resetting password page. The disposable setting of valid link could prevent the page being abused.
 		if m == "GET" {
@@ -162,7 +169,7 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 				PrepareVehicle(ctx, reqStruct, resStruct, c, "", "")
 			}
 		}
-	case sync:
+	case Sync:
 		if m == "POST" {
 			reqStruct := &ReqSync{}
 			resStruct := &ResSync{}
@@ -181,7 +188,7 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 				PrepareVehicleSync(ctx, reqStruct, resStruct, cUser, cDeviceInfo, cCards, reqStruct.RequestId, reqStruct.DeviceUUID)
 			}
 		}
-	case newCard:
+	case NewCard:
 		// Uniqueness is checked in MakeDecision
 		reqStruct := &ReqCard{}
 		resStruct := &ResCards{}
@@ -193,7 +200,7 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 			// }
 			PrepareVehicle(ctx, reqStruct, resStruct, nil, reqStruct.RequestId, reqStruct.DeviceUUID)
 		}
-	case oneCard:
+	case OneCard:
 		// No need to worry about isDeleted here since the versionNo comparison will take care of that.
 		resStruct := &ResCards{}
 		idToCheck := bson.ObjectIdHex(params["card_id"])
@@ -243,7 +250,7 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 	// 		PrepareVehicle(ctx, nil, resStruct, c, "", "")
 	// 	}
 
-	case dicTranslation:
+	case DicTranslation:
 		resStruct := ResDicResults{}
 		sourceLang := params["sourcelang"]
 		targetLang := params["targetlang"]
@@ -261,7 +268,7 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 			"isDeleted": false,
 			"isHidden":  false}
 		PrepareVehicle(ctx, nil, resStruct, c, "", "")
-	case dicDetail:
+	case DicDetail:
 		resStruct := ResDicResults{}
 		sourceLang := params["sourcelang"]
 		targetLang := params["targetlang"]
@@ -275,7 +282,7 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 			"isDeleted": false,
 			"isHidden":  false}
 		PrepareVehicle(ctx, nil, resStruct, c, "", "")
-	case dicContext:
+	case DicContext:
 		resStruct := ResDicResults{}
 		sourceLang := params["sourcelang"]
 		targetLang := params["targetlang"]
@@ -324,7 +331,7 @@ func PrepareVehicle(ctx martini.Context, reqS interface{}, resS interface{}, c b
 	if deviceUUID != "" {
 		v.DeviceUUID = deviceUUID
 	}
-	ctx.MapTo(v, (*Vehicle)(nil))
+	ctx.Map(&v)
 }
 
 func PrepareVehicleSync(ctx martini.Context, reqS interface{}, resS interface{}, c bson.M, c2 bson.M, c3 bson.M, requestId string, deviceUUID string) {
@@ -337,7 +344,7 @@ func PrepareVehicleSync(ctx martini.Context, reqS interface{}, resS interface{},
 	v.Criteria3 = c3
 	v.RequestId = requestId
 	v.DeviceUUID = deviceUUID
-	ctx.MapTo(v, (*Vehicle)(nil))
+	ctx.Map(&v)
 }
 
 func GetVehicleContentInContext(ctx martini.Context, fieldName string) reflect.Value {

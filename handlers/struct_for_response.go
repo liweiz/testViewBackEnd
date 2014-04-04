@@ -144,8 +144,8 @@ type CardToDeleteInRes struct {
 }
 
 type ResSignUpOrIn struct {
-	User   UserInCommon
-	Tokens TokensInCommon
+	User   UserInCommon   `json:"user"`
+	Tokens TokensInCommon `json:"tokens"`
 }
 
 // RequestVersionNo is used to solve the online/offline sync issue. Tokens is an exception since there is no need to sync tokens, only getting new tokens is needed. Therefore, VersionNo is not necessary here, either.
@@ -157,8 +157,8 @@ type ResTokensOnly struct {
 	   2. no user info on client
 	   There is no easy way to tell which situation is on client. So leave that part for sync request sent by client. A sync request follows the successful login response immediately.
 	*/
-	UserId string
-	Tokens TokensInCommon
+	UserId string         `json:"userId"`
+	Tokens TokensInCommon `json:"tokens"`
 	// No RequestVersionNo here. Tokens are not compared by VersionNo/RequestVersionNo. They are compared directly.
 	// No need to have user_id as well. Coz a given set of tokens are only valid with one device and user. If anything goes wrong, simply ask the user to login will do.
 }

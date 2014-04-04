@@ -129,7 +129,7 @@ Sync flow:
 2: The client adds its requestVersionNo to the list. The list has requestVersionNo and isDone.
 2.1: The client does not receive response/receives non-200 response from server. Send the same request again till 200 response received.
 3: The server receives the request. Find out if it has been successfully processed with its RequestProcessed. If not, process the request. Otherwise, send 200 response back to the client, no body.
-3.1: After the successful process of the request. Send 200 response with the results in body. Add the request to RequestProcessed.
+3.1: After the successful process of the request. Send 200 response with the results in body. No need to add the request to RequestProcessed.
 3.2: When process is not successful, send the err message back to the client.
 2.2: A 200 response received by client. Set the requestVersionNo off the list. If there is body, modify the local data with the results from server. If no body, which is only to let the client know the server has successfully processed the request, do nothing and let the sync request update the corresponding local data.
 4: When requestVersionNo pool on client is cleared, send sync request. Before receiving the response of the sync request, no other request is sent out by the client. This is to avoid potential data inconsistence.
@@ -139,7 +139,7 @@ Sync flow:
 After the corresponding response received by the client, it change the isDone to true. Any sync request is triggered after all existing requestVersionNos has their isDone set to be true. Forcing to sync leads to checking the list and resending the requests that isDone is set as false.
 Server keeps the response info in RequestProcessed to handle duplicated requests (requests with same requestVersionNo). After the sync request is received, the server clear the previous response info since they are not needed any more. The way to trigger sync request on client indicates sync request sent only when all previous requests` responses have been received. It`s actually a circle. Between every two adjacent sync requests, unDone requests are sent and the later sync request is triggered indicates previous requests are all been processed. The earlier one indicates the unDone requests start to be accumulated. The possible operation before the sync response is received by client makes the client drop the response and trigger another sync request after the new operation is done. The dropped sync request needs to be set as isDone = true on both server and client.
 */
-// A requestProcessed is created after the response is successfully sent.
+// A requestProcessed is created after the response is successfully sent. For now, only needed for card since other records are device and account specific. In other words, each device and account combination has its own data store on server. The User model on server always overwrites clients'.
 type RequestProcessed struct {
 	Id           bson.ObjectId `bson:"_id" json:"_id"`
 	BelongToUser bson.ObjectId `bson:"belongToUser" json:"belongToUser"`

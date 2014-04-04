@@ -1,7 +1,7 @@
 package testView
 
 import (
-	"github.com/codegangsta/martini"
+	"github.com/go-martini/martini"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"log"
@@ -13,7 +13,7 @@ import (
 // 2. The other in the end. If it is successfully processed, add to the list. Only successful ones in the list.
 
 func ReqIdChecker() martini.Handler {
-	return func(db *mgo.Database, v *Vehicle, params martini.Params, rw martini.ResponseWriter, logger *log.Logger) {
+	return func(db *mgo.Database, v *Vehicle, params martini.Params, rw http.ResponseWriter, logger *log.Logger) {
 		isProcessed, err := CheckReqId(db, v.RequestId, v.DeviceUUID, bson.ObjectIdHex(params["user_id"]))
 		if !isProcessed {
 			if err == mgo.ErrNotFound {

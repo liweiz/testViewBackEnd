@@ -3,7 +3,8 @@ package testView
 import (
 	"encoding/json"
 	"errors"
-	"github.com/codegangsta/martini"
+	"fmt"
+	"github.com/go-martini/martini"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"log"
@@ -12,25 +13,27 @@ import (
 	"strings"
 )
 
-func ProcessedResponseGenerator() martini.Handler {
-	return func(db *mgo.Database, route int, v *Vehicle, req *http.Request, params martini.Params, rw martini.ResponseWriter, logger *log.Logger) {
+func ProcessedResponseGenerator(route int, setRequestProcessed bool) martini.Handler {
+	return func(db *mgo.Database, v *Vehicle, req *http.Request, params martini.Params, rw http.ResponseWriter, logger *log.Logger) {
 		err := ProcessRequest(db, route, v.Criteria, v.ReqStruct, req, v.ResStruct, params)
 		var s string
 		if err == nil {
-			// Add successfully processed request to RequestProcessed.
-			_, err = InsertNonDicDB(RequestProcessedNew, v.ReqStruct, db, params)
-			if err != nil {
-				s = strings.Join([]string{"Failed to insert RequestProcessed, but request has been successfully processed by server. Sent 200 to client so that no more same request needs to be sent.", err.Error()}, "=> ")
-				// Only log it, no need to send to client.
-				WriteLog(s, logger)
-				// Reset err and s.
-				err = nil
-				s = ""
+			// Add successfully processed request to RequestProcessed, if needed.
+			if setRequestProcessed {
+				_, err = InsertNonDicDB(RequestProcessedNew, v.ReqStruct, db, bson.ObjectIdHex(params["user_id"]))
+				if err != nil {
+					s = strings.Join([]string{"Failed to insert RequestProcessed, but request has been successfully processed by server. Sent 200 to client so that no more same request needs to be sent.", err.Error()}, "=> ")
+					// Only log it, no need to send to client.
+					WriteLog(s, logger)
+					// Reset err and s.
+					err = nil
+					s = ""
+				}
 			}
 			// Send response.
 			rw.Header().Set("Content-Type", "application/json")
 			var j []byte
-			j, err = json.Marshal(v.ReqStruct)
+			j, err = json.Marshal(v.ResStruct)
 			if err == nil {
 				// Response size, any usage???
 				_, err = rw.Write(j)
@@ -42,6 +45,7 @@ func ProcessedResponseGenerator() martini.Handler {
 		if err != nil {
 			if s == "" {
 				WriteLog(err.Error(), logger)
+				fmt.Println("err to log: ", err.Error())
 				http.Error(rw, err.Error(), http.StatusInternalServerError)
 			} else {
 				WriteLog(s, logger)
@@ -65,26 +69,26 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 	if m == "GET" {
 		// No potential conflict
 		switch route {
-		case oneCard:
+		case OneCard:
 			var resultCard CardInCommon
 			err = db.C("cards").Find(criteria).Select(GetSelector(SelectCardInCommon)).One(&resultCard)
 			if err == nil {
-				err = SetResBodyPart(v, "Cards", []CardInCommon{resultCard})
+				err = SetResBodyPart(v, "Cards", reflect.ValueOf([]CardInCommon{resultCard}))
 			}
-		case oneUser:
+		case OneUser:
 			var resultUser UserInCommon
 			err = db.C("users").Find(criteria).Select(GetSelector(SelectUserInCommon)).One(&resultUser)
 			if err == nil {
-				err = SetResBodyPart(v, "User", resultUser)
+				err = SetResBodyPart(v, "User", reflect.ValueOf(resultUser))
 			}
-		case oneDeviceInfo:
+		case OneDeviceInfo:
 			var resultDeviceInfo DeviceInfoInCommon
 			err := db.C("deviceInfos").Find(bson.M{
 				"belongTo": params["user_id"],
 				// /users/:user_id/devices/:device_id
 				"_id": params["device_id"]}).Select(GetSelector(SelectDeviceInfoInCommon)).One(&resultDeviceInfo)
 			if err == nil {
-				err = SetResBodyPart(v, "DeviceInfo", resultDeviceInfo)
+				err = SetResBodyPart(v, "DeviceInfo", reflect.ValueOf(resultDeviceInfo))
 			}
 		// case dicTranslation:
 		// case dicDetail:
@@ -109,54 +113,64 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 
 			So a new user's deviceInfo is created on client by user and stored to db. A existing user's deviceInfo is delivered by sync process or providing the list for client to choose. When there is only one existing deviceInfo on server, send this to client.
 		*/
-		case signUp:
-			// var aUser User
+		case SignUp:
+			var aUser User
 			// Check if already in use
-			var n int
-			n, err = db.C("users").Find(criteria).Count()
-			if n > 0 && err == nil {
+			err = db.C("users").Find(criteria).One(&aUser)
+			if err == mgo.ErrNotFound {
+				fmt.Println("existing uer not found")
+				// Reset err = nil
+				err = nil
+				// Create a new user
 				var newId bson.ObjectId
-				newId, err = InsertNonDicDB(UserNew, structFromReq, db, params)
+				newId, err = InsertNonDicDB(UserNew, structFromReq, db, "")
 				if err == nil {
+					// Get and put the new user to response body.
 					var r UserInCommon
 					err = db.C("users").Find(bson.M{
 						"_id": newId}).Select(GetSelector(SelectUserInCommon)).One(&r)
 					if err == nil {
-						v.FieldByName("User").Set(reflect.ValueOf(r))
-						// Proceed to tokens
-						var r1 TokensInCommon
-						r1, err = SetDeviceTokens(db, structFromReq, params)
+						err = SetResBodyPart(v.FieldByName("User"), "User", reflect.ValueOf(r))
 						if err == nil {
-							err = SetResBodyPart(v.FieldByName("Tokens"), "Tokens", reflect.ValueOf(r1))
+							// Proceed to tokens
+							var r1 TokensInCommon
+							r1, err = SetGetDeviceTokens(r.Id, structFromReq, db)
+							if err == nil {
+								err = SetResBodyPart(v.FieldByName("Tokens"), "Tokens", reflect.ValueOf(r1))
+							}
 						}
 					}
 				}
+			} else if err == nil {
+				err = errors.New("User already exists.")
 			}
-		case signIn:
+		case SignIn:
 			var r UserInCommon
 			err = db.C("users").Find(criteria).Select(GetSelector(SelectUserInCommon)).One(&r)
 			if err == nil {
-				v.FieldByName("User").Set(reflect.ValueOf(r))
-				// Proceed to tokens
-				var r1 TokensInCommon
-				r1, err = SetDeviceTokens(db, structFromReq, params)
+				err = SetResBodyPart(v.FieldByName("User"), "User", reflect.ValueOf(r))
 				if err == nil {
-					err = SetResBodyPart(v.FieldByName("Tokens"), "Tokens", reflect.ValueOf(r1))
+					// Proceed to tokens
+					var r1 TokensInCommon
+					r1, err = SetGetDeviceTokens(r.Id, structFromReq, db)
+					if err == nil {
+						err = SetResBodyPart(v.FieldByName("Tokens"), "Tokens", reflect.ValueOf(r1))
+					}
 				}
 			}
-		case renewTokens:
+		case RenewTokens:
 			var r TokensInCommon
-			r, err = SetDeviceTokens(db, structFromReq, params)
+			r, err = SetGetDeviceTokens(bson.ObjectIdHex(params["user_id"]), structFromReq, db)
 			if err == nil {
 				err = SetResBodyPart(v.FieldByName("Tokens"), "Tokens", reflect.ValueOf(r))
 				if err == nil {
 					err = SetResBodyPart(v.FieldByName("UserId"), "UserId", reflect.ValueOf(params["user_id"]))
 				}
 			}
-		case newDeviceInfo:
+		case NewDeviceInfo:
 			// The only case a new deviceInfo created by client is after signing in.
 			var newId bson.ObjectId
-			newId, err = InsertNonDicDB(DeviceInfoNew, structFromReq, db, params)
+			newId, err = InsertNonDicDB(DeviceInfoNew, structFromReq, db, bson.ObjectIdHex(params["user_id"]))
 			if err == nil {
 				var r DeviceInfoInCommon
 				err = db.C("deviceInfos").Find(bson.M{
@@ -165,13 +179,13 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 					err = SetResBodyPart(v.FieldByName("DeviceInfo"), "DeviceInfo", reflect.ValueOf(r))
 				}
 			}
-		case oneDeviceInfoSortOption:
+		case OneDeviceInfoSortOption:
 			// When log in on a new device or a device that the account has been deleted before, both indicate no deviceInfo on the device,
 			var n int
 			n, err = db.C("deviceInfos").Find(criteria).Count()
 			if n <= 0 || err == mgo.ErrNotFound {
 				var selector bson.M
-				selector, err = UpdateNonDicDB(DeviceInfoUpdateSortOption, structFromReq, db, params)
+				selector, err = UpdateNonDicDB(DeviceInfoUpdateSortOption, structFromReq, db, params, bson.ObjectIdHex(params["user_id"]))
 				if err == nil {
 					var r DeviceInfoInCommon
 					err = db.C("deviceInfos").Find(selector).Select(GetSelector(SelectDeviceInfoInCommon)).One(&r)
@@ -180,13 +194,13 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 					}
 				}
 			}
-		case oneDeviceInfoLang:
+		case OneDeviceInfoLang:
 			// When log in on a new device or a device that the account has been deleted before, both indicate no deviceInfo on the device,
 			var n int
 			n, err = db.C("deviceInfos").Find(criteria).Count()
 			if n <= 0 || err == mgo.ErrNotFound {
 				var selector bson.M
-				selector, err = UpdateNonDicDB(DeviceInfoUpdateLang, structFromReq, db, params)
+				selector, err = UpdateNonDicDB(DeviceInfoUpdateLang, structFromReq, db, params, bson.ObjectIdHex(params["user_id"]))
 				if err == nil {
 					var r DeviceInfoInCommon
 					err = db.C("deviceInfos").Find(selector).Select(GetSelector(SelectDeviceInfoInCommon)).One(&r)
@@ -197,7 +211,7 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 			}
 		// Resetting password goes through html, not here.
 		// Activating only changes email after user being activated. It goes through html, not here, either.
-		case sync:
+		case Sync:
 			userId := bson.ObjectIdHex(params["user_id"])
 			// Sync User
 			var myUser UserInCommon
@@ -228,14 +242,14 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 					}
 				}
 			}
-		case newCard:
+		case NewCard:
 			var r []CardInCommon
 			r, _, err = InsertNewCard(db, structFromReq, params)
 			if len(r) > 0 {
 				// Card with same content found, return this card to client.
 				err = SetResBodyPart(v.FieldByName("Cards"), "Cards", reflect.ValueOf(r))
 			}
-		case oneCard:
+		case OneCard:
 			var t CardInCommon
 			var r []CardInCommon
 			err = db.C("cards").Find(criteria).One(&t)
@@ -267,7 +281,7 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 				} else if decisionCode == NoConflictOverwriteDB {
 					// No need to check uniqueness here. If there is duplicate card in db, just let the user do what he wants.
 					var selector bson.M
-					selector, err = UpdateNonDicDB(CardUpdate, structFromReq, db, params)
+					selector, err = UpdateNonDicDB(CardUpdate, structFromReq, db, params, bson.ObjectIdHex(params["user_id"]))
 					if err == nil {
 						err = db.C("cards").Find(selector).Select(GetSelector(SelectCardInCommon)).All(&r)
 						if err == nil {
@@ -292,7 +306,7 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 		}
 	} else if m == "DELETE" {
 		// One case only: DELETE /users/:user_id/cards/:card_id
-		if route == oneCard {
+		if route == OneCard {
 			var t CardInCommon
 			var r []CardInCommon
 			err = db.C("cards").Find(criteria).One(&t)
@@ -310,6 +324,35 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 			}
 		} else {
 			err = errors.New("Request not recogniized.")
+		}
+	}
+	return
+}
+
+func SetGetDeviceTokens(userId bson.ObjectId, structFromReq interface{}, db *mgo.Database) (tokens TokensInCommon, err error) {
+	x := reflect.ValueOf(structFromReq)
+	if x.Kind() == reflect.Ptr {
+		x = x.Elem()
+	}
+	selector := bson.M{
+		"belongTo":   userId,
+		"deviceUUID": x.FieldByName("DeviceUUID").String()}
+	var t DeviceTokens
+	var newId bson.ObjectId
+	err = db.C("deviceTokens").Find(selector).One(&t)
+	if err == mgo.ErrNotFound {
+		err = nil
+		// No record found, create new DeviceTokens. SignUp/SignIn
+		newId, err = InsertNonDicDB(DeviceTokensNew, structFromReq, db, userId)
+		if err == nil {
+			err = db.C("deviceTokens").Find(bson.M{"_id": newId}).Select(GetSelector(SelectDeviceTokensInCommon)).One(&tokens)
+		}
+	} else if err == nil {
+		// Record found, update existing record.
+		var selector1 bson.M
+		selector1, err = UpdateNonDicDB(DeviceTokensUpdateTokens, structFromReq, db, nil, userId)
+		if err == nil {
+			err = db.C("deviceTokens").Find(selector1).Select(GetSelector(SelectDeviceTokensInCommon)).One(&tokens)
 		}
 	}
 	return
@@ -389,13 +432,13 @@ func PushCardToCardList(db *mgo.Database, cardList reflect.Value, cardID bson.Ob
 	return
 }
 
-func SetResBodyPart(partToSet reflect.Value, fieldNameToSet string, valueIn interface{}) (err error) {
+func SetResBodyPart(partToSet reflect.Value, fieldNameToSet string, valueIn reflect.Value) (err error) {
 	if partToSet.CanSet() {
-		v := reflect.ValueOf(valueIn)
-		if v.Kind() == reflect.Ptr {
-			v = v.Elem()
-		}
-		v.FieldByName(fieldNameToSet).Set(v)
+		// v := reflect.ValueOf(valueIn)
+		// if v.Kind() == reflect.Ptr {
+		// 	v = v.Elem()
+		// }
+		partToSet.Set(valueIn)
 	} else {
 		msg := strings.Join([]string{"Structure for response not able to be set:", fieldNameToSet}, " ")
 		err = errors.New(msg)
@@ -414,7 +457,7 @@ func InsertNewCard(db *mgo.Database, structFromReq interface{}, params martini.P
 		// New card is unique, insert it into db. err == mgo.ErrNotFound
 		err = nil
 		var newId bson.ObjectId
-		newId, err = InsertNonDicDB(CardNew, structFromReq, db, params)
+		newId, err = InsertNonDicDB(CardNew, structFromReq, db, bson.ObjectIdHex(params["user_id"]))
 		if err == nil {
 			err = db.C("cards").Find(bson.M{
 				"_id": newId}).Select(GetSelector(SelectCardInCommon)).All(&inserted)

@@ -8,9 +8,9 @@ import (
 
 // No use, coz they can be stored in Authorization header.
 type ReqSignUpOrIn struct {
-	Email      string
-	Password   string
-	DeviceUUID string
+	Email      string `json:"email"`
+	Password   string `json:"password"`
+	DeviceUUID string `json:"deviceUUID"`
 }
 
 type ReqResetPassword struct {
@@ -23,8 +23,8 @@ type ReqUpdateEmail struct {
 
 type ReqRenewTokens struct {
 	// UserId is get from params in url.
-	DeviceUUID string
-	Tokens     TokensInCommon
+	DeviceUUID string         `json:"deviceUUID"`
+	Tokens     TokensInCommon `json:"tokens"`
 }
 
 // RequestId appears together with client UUID to locate the list to put RequestId into.
