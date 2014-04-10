@@ -139,8 +139,8 @@ Response:
 */
 
 type CardToDeleteInRes struct {
-	ID        bson.ObjectId
-	VersionNo int64
+	ID        bson.ObjectId `json:"id"`
+	VersionNo int64         `json:"versionNo"`
 }
 
 type ResSignUpOrIn struct {
@@ -165,45 +165,41 @@ type ResTokensOnly struct {
 
 // Sync user
 type ResUser struct {
-	User UserInCommon
+	User UserInCommon `json:"user"`
 }
 
 type ResResetPassword struct {
-	PasswordIsResetted bool
+	PasswordIsResetted bool `json:"passwordIsResetted"`
 }
 
 type ResActivation struct {
-	IsActivatedThisTime bool
+	IsActivatedThisTime bool `json:"isActivatedThisTime"`
 }
 
 type ResDeviceInfo struct {
-	DeviceInfo DeviceInfoInCommon
+	DeviceInfo DeviceInfoInCommon `json:"deviceInfo"`
 }
 
 // For full card info returned in res
 type ResCards struct {
-	Cards []CardInCommon
+	Cards []CardInCommon `json:"cards"`
 }
 
 type ResSync struct {
-	User         UserInCommon
-	DeviceInfo   DeviceInfoInCommon
-	CardList     []CardInCommon
-	CardToDelete []bson.ObjectId
-}
-
-type ResFail struct {
-	FailedReason string
+	User         UserInCommon       `json:"user"`
+	DeviceInfo   DeviceInfoInCommon `json:"deviceInfo"`
+	CardList     []CardInCommon     `json:"cardList"`
+	CardToDelete []bson.ObjectId    `json:"cardToDelete"`
 }
 
 type DicTextInRes struct {
-	Id                string
-	Text              string
-	ChildrenUpdatedAt int64
+	Id                string `json:"id"`
+	Text              string `json:"text"`
+	ChildrenUpdatedAt int64  `json:"childrenUpdatedAt"`
 }
 
 type ResDicResults struct {
 	// Level: translation/detail/context
-	Level   string
-	Results []DicTextInRes
+	Level   string         `json:"level"`
+	Results []DicTextInRes `json:"results"`
 }

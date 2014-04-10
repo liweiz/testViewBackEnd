@@ -42,10 +42,10 @@ func GetSelector(option int) (r bson.M) {
 			"refreshToken": 1}
 	case SelectDeviceInfoInCommon:
 		r = bson.M{
-			"lastModified": 0,
 			"dicTier2":     0,
 			"dicTier3":     0,
-			"dicTier4":     0}
+			"dicTier4":     0,
+			"lastModified": 0}
 	case SelectCardInCommon:
 		r = bson.M{
 			"isDeleted": 0}
@@ -60,14 +60,25 @@ type UserInCommon struct {
 	VersionNo int64         `bson:"versionNo" json:"versionNo"`
 }
 
+type PasswordResettingUrlBasePair struct {
+	PasswordResettingUrlBase string `bson:"passwordResettingUrlBase" json:"passwordResettingUrlBase"`
+	TimeStamp                int64  `bson:"timeStamp" json:"timeStamp"`
+}
+
 type User struct {
-	UserInCommon
+	Activated bool          `bson:"activated" json:"activated"`
+	Email     string        `bson:"email" json:"email"`
+	Id        bson.ObjectId `bson:"_id" json:"_id"`
+	VersionNo int64         `bson:"versionNo" json:"versionNo"`
 
 	// Server side only
-	LastModified int64  `bson:"lastModified" json:"lastModified"`
-	CreatedAt    int64  `bson:"createdAt" json:"createdAt"`
-	Password     string `bson:"password" json:"password"`
-	IsDeleted    bool   `bson:"isDeleted" json:"isDeleted"`
+	LastModified      int64  `bson:"lastModified" json:"lastModified"`
+	CreatedAt         int64  `bson:"createdAt" json:"createdAt"`
+	Password          string `bson:"password" json:"password"`
+	IsDeleted         bool   `bson:"isDeleted" json:"isDeleted"`
+	ActivationUrlBase string `bson:"activationUrlBase" json:"activationUrlBase"`
+	// PasswordResettingUrls is a url/timestamp pair. Expired urls will be evaluated and cleaned up each time a new password-resetting request is received by server.
+	PasswordResettingUrlBases []PasswordResettingUrlBasePair `bson:"passwordResettingUrlBases" json:"passwordResettingUrlBases"`
 	// For versionNo calculation, newVersionNo = HighestVersionNo + 1
 	// RequestProcessed and HasCards have no effect on VersionNo. In other words, no VersionNo change when either of these two changes.
 }
@@ -79,7 +90,9 @@ type TokensInCommon struct {
 }
 
 type DeviceTokens struct {
-	TokensInCommon
+	AccessToken  string `bson:"accessToken" json:"accessToken"`
+	RefreshToken string `bson:"refreshToken" json:"refreshToken"`
+
 	Id                  bson.ObjectId `bson:"_id" json:"_id"`
 	BelongTo            bson.ObjectId `bson:"belongTo" json:"belongTo"`
 	DeviceUUID          string        `bson:"deviceUUID" json:"deviceUUID"`
@@ -95,8 +108,7 @@ Different cases:
 	Client
 */
 
-type DeviceInfoInCommon struct {
-	Id         bson.ObjectId `bson:"_id" json:"_id"`
+type DeviceInfoInCommonNew struct {
 	BelongTo   bson.ObjectId `bson:"belongTo" json:"belongTo"`
 	DeviceUUID string        `bson:"deviceUUID" json:"deviceUUID"`
 	// LanguagePair selection is done when user signs up. User will be asked to set the pair after a successful signup but before they can use the app. The initially selected pair is stored and used as default. The change operation will be provided in future releases. Not a problem currently.
@@ -109,9 +121,30 @@ type DeviceInfoInCommon struct {
 	RememberMe bool   `bson:"rememberMe" json:"rememberMe"`
 }
 
+type DeviceInfoInCommon struct {
+	Id bson.ObjectId `bson:"_id" json:"_id"`
+
+	BelongTo   bson.ObjectId `bson:"belongTo" json:"belongTo"`
+	DeviceUUID string        `bson:"deviceUUID" json:"deviceUUID"`
+	SourceLang string        `bson:"sourceLang" json:"sourceLang"`
+	TargetLang string        `bson:"targetLang" json:"targetLang"`
+	SortOption string        `bson:"sortOption" json:"sortOption"`
+	IsLoggedIn bool          `bson:"isLoggedIn" json:"isLoggedIn"`
+	RememberMe bool          `bson:"rememberMe" json:"rememberMe"`
+}
+
 // Server side only
 type DeviceInfo struct {
-	DeviceInfoInCommon
+	Id bson.ObjectId `bson:"_id" json:"_id"`
+
+	BelongTo   bson.ObjectId `bson:"belongTo" json:"belongTo"`
+	DeviceUUID string        `bson:"deviceUUID" json:"deviceUUID"`
+	SourceLang string        `bson:"sourceLang" json:"sourceLang"`
+	TargetLang string        `bson:"targetLang" json:"targetLang"`
+	SortOption string        `bson:"sortOption" json:"sortOption"`
+	IsLoggedIn bool          `bson:"isLoggedIn" json:"isLoggedIn"`
+	RememberMe bool          `bson:"rememberMe" json:"rememberMe"`
+
 	LastModified int64 `bson:"lastModified" json:"lastModified"`
 	// Save search result for each tier and serve by pagination. No tier1 here since tier1 is just one words. Overwrite corresponding tier when new search is triggered by client. Meanwhile, clear up the sibling tiers if there is any. The result is sorted by the device`s sortOption stored.
 	// Change on these does not update lastModified in DeviceInfo.
@@ -151,14 +184,28 @@ type RequestProcessed struct {
 	Timestamp int64 `bson:"timestamp" json:"timestamp"`
 }
 
-type CardInCommon struct {
+type CardInCommonNew struct {
 	Context      string        `bson:"context" json:"context"`
 	Detail       string        `bson:"detail" json:"detail"`
 	SourceLang   string        `bson:"sourceLang" json:"sourceLang"`
 	Target       string        `bson:"target" json:"target"`
 	TargetLang   string        `bson:"targetLang" json:"targetLang"`
 	Translation  string        `bson:"translation" json:"translation"`
-	Id           bson.ObjectId `bson:"_id" json:"_id"`
+	VersionNo    int64         `bson:"versionNo" json:"versionNo"`
+	CollectedAt  int64         `bson:"collectedAt" json:"collectedAt"`
+	LastModified int64         `bson:"lastModified" json:"lastModified"`
+	BelongTo     bson.ObjectId `bson:"belongTo" json:"belongTo"`
+}
+
+type CardInCommon struct {
+	Id bson.ObjectId `bson:"_id" json:"_id"`
+
+	Context      string        `bson:"context" json:"context"`
+	Detail       string        `bson:"detail" json:"detail"`
+	SourceLang   string        `bson:"sourceLang" json:"sourceLang"`
+	Target       string        `bson:"target" json:"target"`
+	TargetLang   string        `bson:"targetLang" json:"targetLang"`
+	Translation  string        `bson:"translation" json:"translation"`
 	VersionNo    int64         `bson:"versionNo" json:"versionNo"`
 	CollectedAt  int64         `bson:"collectedAt" json:"collectedAt"`
 	LastModified int64         `bson:"lastModified" json:"lastModified"`
@@ -166,7 +213,18 @@ type CardInCommon struct {
 }
 
 type Card struct {
-	CardInCommon
+	Id bson.ObjectId `bson:"_id" json:"_id"`
+
+	Context      string        `bson:"context" json:"context"`
+	Detail       string        `bson:"detail" json:"detail"`
+	SourceLang   string        `bson:"sourceLang" json:"sourceLang"`
+	Target       string        `bson:"target" json:"target"`
+	TargetLang   string        `bson:"targetLang" json:"targetLang"`
+	Translation  string        `bson:"translation" json:"translation"`
+	VersionNo    int64         `bson:"versionNo" json:"versionNo"`
+	CollectedAt  int64         `bson:"collectedAt" json:"collectedAt"`
+	LastModified int64         `bson:"lastModified" json:"lastModified"`
+	BelongTo     bson.ObjectId `bson:"belongTo" json:"belongTo"`
 
 	// Server side only
 	IsDeleted bool `bson:"isDeleted" json:"isDeleted"`

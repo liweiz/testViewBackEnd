@@ -1,6 +1,7 @@
 package testView
 
 import (
+	"fmt"
 	"github.com/go-martini/martini"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
@@ -18,21 +19,25 @@ func ReqIdChecker() martini.Handler {
 		if !isProcessed {
 			if err == mgo.ErrNotFound {
 				// Good to proceed
+				fmt.Println("Request not successfully processed previously.")
 			} else if err != nil {
 				WriteLog(err.Error(), logger)
 				http.Error(rw, err.Error(), http.StatusInternalServerError)
 			}
 		} else {
 			rw.WriteHeader(http.StatusOK)
+			fmt.Println("Request successfully processed previously.")
 		}
 	}
 }
 
 func CheckReqId(db *mgo.Database, reqIdToCheck string, deviceUUID string, userId bson.ObjectId) (isProcessed bool, err error) {
-	_, err = db.C("requestProcessed").Find(bson.M{
+	var v RequestProcessed
+	err = db.C("requestsProcessed").Find(bson.M{
 		"belongToUser": userId,
 		"requestId":    reqIdToCheck,
-		"deviceUUID":   deviceUUID}).Count()
+		"deviceUUID":   deviceUUID}).One(&v)
+	fmt.Println("requestsProcessed: ", v)
 	if err == nil {
 		isProcessed = true
 	}

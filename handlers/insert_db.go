@@ -2,7 +2,9 @@ package testView
 
 import (
 	"errors"
+	"fmt"
 	"github.com/go-martini/martini"
+	"github.com/twinj/uuid"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"reflect"
@@ -44,6 +46,7 @@ const (
 func InsertNonDicDB(defaultDocType int, structFromReq interface{}, db *mgo.Database, userId bson.ObjectId) (newId bson.ObjectId, err error) {
 	var d interface{}
 	d, newId, err = PrepareNewNonDicDocDB(defaultDocType, structFromReq, userId)
+	fmt.Println("bson.M to insert 2: ", d)
 	if err == nil {
 		var name string
 		switch defaultDocType {
@@ -62,6 +65,9 @@ func InsertNonDicDB(defaultDocType int, structFromReq interface{}, db *mgo.Datab
 		}
 		if err == nil {
 			err = db.C(name).Insert(d)
+			if err != nil {
+				fmt.Println("bson.M to insert err: ", err.Error())
+			}
 		}
 	}
 	return
@@ -90,6 +96,8 @@ func PrepareNewNonDicDocDB(defaultDocType int, structFromReq interface{}, userId
 			"collectedAt":  time.Now().UnixNano(),
 			"isDeleted":    false}
 	case UserNew:
+		uuid.SwitchFormat(uuid.Clean, false)
+		uniqueUrlBase := uuid.NewV4().String()
 		docToSave = bson.M{
 			// UserInCommon
 			"activated": false,
@@ -98,10 +106,11 @@ func PrepareNewNonDicDocDB(defaultDocType int, structFromReq interface{}, userId
 			"versionNo": 1,
 
 			//Non UserInCommon part
-			"lastModified": time.Now().UnixNano(),
-			"createdAt":    time.Now().UnixNano(),
-			"isDeleted":    false,
-			"password":     d.FieldByName("Password").String()}
+			"lastModified":      time.Now().UnixNano(),
+			"createdAt":         time.Now().UnixNano(),
+			"isDeleted":         false,
+			"password":          d.FieldByName("Password").String(),
+			"activationUrlBase": uniqueUrlBase}
 	case DeviceTokensNew:
 		accessToken, refreshToken := GenerateTokens(true)
 		docToSave = bson.M{
@@ -111,8 +120,9 @@ func PrepareNewNonDicDocDB(defaultDocType int, structFromReq interface{}, userId
 			"_id":          newId,
 			"belongTo":     userId,
 			"deviceUUID":   d.FieldByName("DeviceUUID").String(),
-			// Each accessToken is valid for 3 hours
-			"accessTokenExpireAt": time.Now().UnixNano() + (3.6e+12)*3,
+			// Each accessToken is valid for 3 hours, (3.6e+12)*3
+			// For test purpose, reduce this to 3 mins, (3.6e+12)/20
+			"accessTokenExpireAt": time.Now().UnixNano() + (3.6e+12)/20,
 			"lastModified":        time.Now().UnixNano()}
 	// DeviceInfo is created after user is created successfully.
 	case DeviceInfoNew:
@@ -122,11 +132,11 @@ func PrepareNewNonDicDocDB(defaultDocType int, structFromReq interface{}, userId
 			"belongTo":   userId,
 			"deviceUUID": d.FieldByName("DeviceUUID").String(),
 			// These are set by users after a successful signup.
-			"sourceLang": "",
-			"targetLang": "",
+			"sourceLang": d.FieldByName("DeviceInfo").FieldByName("SourceLang").String(),
+			"targetLang": d.FieldByName("DeviceInfo").FieldByName("TargetLang").String(),
 			"isLoggedIn": true,
 			"rememberMe": true,
-			"sortOption": "ByLastModifiedDescending",
+			"sortOption": d.FieldByName("DeviceInfo").FieldByName("SortOption").String(),
 
 			// Non DeviceInfoInCommon part
 			"lastModified": time.Now().UnixNano(),
@@ -143,6 +153,7 @@ func PrepareNewNonDicDocDB(defaultDocType int, structFromReq interface{}, userId
 	default:
 		err = errors.New("No matched document type for nonDic database.")
 	}
+	fmt.Println("bson.M to insert: ", docToSave)
 	return
 }
 

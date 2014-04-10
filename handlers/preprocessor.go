@@ -5,10 +5,10 @@ import (
 	"errors"
 	"github.com/go-martini/martini"
 	// "io/ioutil"
+	"fmt"
 	"labix.org/v2/mgo/bson"
 	"log"
 	"net/http"
-	// "os"
 	"reflect"
 )
 
@@ -22,7 +22,10 @@ const (
 	OneDeviceInfoSortOption
 	OneDeviceInfoLang
 	OneUser
-	Activation
+	OneActivationEmail
+	OneActivationPage
+	OnePasswordResettingEmail
+	OnePasswordResettingPage
 	PasswordResetting
 	Sync
 	NewCard
@@ -93,17 +96,21 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 				c := bson.M{
 					"belongTo":     idToCheck,
 					"accessToken":  reqStruct.Tokens.AccessToken,
-					"refreshToken": reqStruct.Tokens.RefreshToken}
+					"refreshToken": reqStruct.Tokens.RefreshToken,
+					"deviceUUID":   reqStruct.DeviceUUID}
 				PrepareVehicle(ctx, reqStruct, resStruct, c, "", "")
 			}
 		}
 	case NewDeviceInfo:
 		if m == "POST" {
-			reqStruct := &ReqDeviceInfo{}
+			reqStruct := &ReqDeviceInfoNew{}
 			resStruct := &ResDeviceInfo{}
 			err = GetStructFromReq(req, reqStruct)
 			if err == nil {
 				PrepareVehicle(ctx, reqStruct, resStruct, nil, reqStruct.RequestId, reqStruct.DeviceUUID)
+				fmt.Println("reqResture: ", reqStruct)
+				fmt.Println("reqStruct.RequestId: ", reqStruct.RequestId)
+				fmt.Println("reqStruct.DeviceUUID: ", reqStruct.DeviceUUID)
 			}
 		}
 	case OneDeviceInfoSortOption:
@@ -128,15 +135,13 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 				PrepareVehicle(ctx, reqStruct, resStruct, nil, reqStruct.RequestId, reqStruct.DeviceUUID)
 			}
 		}
-	case Activation:
-		// Should serve html here
+	case OneActivationEmail:
 		// Send an email with the activation link. E.g., http://www.xxx.com/:user_id/activaation/:activation_code
 		if m == "GET" {
 			/*
 				No request body since it's a GET call from client.
-
 				The whole activation process:
-				1. User presses the activation button in the activation email sent to the user's email.
+				1. User presses the activation url in the activation email sent to the user's email. Only need to generate url once since activation is a one time activity.
 				2. A webpage is shown in user's browser. If it is not activated before, the html shows message: account activated. Otherwise, the web page shows message: account has been activated already.
 				3. The clients will update the activated state through the next sync request.
 			*/
@@ -190,7 +195,7 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 		}
 	case NewCard:
 		// Uniqueness is checked in MakeDecision
-		reqStruct := &ReqCard{}
+		reqStruct := &ReqCardNew{}
 		resStruct := &ResCards{}
 		err = GetStructFromReq(req, reqStruct)
 		if err == nil {

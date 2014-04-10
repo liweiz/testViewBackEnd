@@ -3,6 +3,7 @@ package testView
 import (
 	"errors"
 	"github.com/go-martini/martini"
+	"github.com/twinj/uuid"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"reflect"
@@ -13,6 +14,8 @@ const (
 	CardUpdate int = iota
 	UserUpdateActivation
 	UserUpdateEmail
+	UserAddPasswordUrlBase
+	UserRemovePasswordUrlBase
 	UserUpdatePassword
 	DeviceTokensUpdateTokens
 	DeviceInfoUpdateSortOption
@@ -27,7 +30,7 @@ func UpdateNonDicDB(defaultDocType int, structFromReq interface{}, db *mgo.Datab
 	d, err = PrepareUpdateNonDicDocDB(defaultDocType, structFromReq)
 	var UserUpdate int
 	var DeviceInfoUpdate int
-	if defaultDocType == UserUpdateActivation || defaultDocType == UserUpdateEmail || defaultDocType == UserUpdatePassword {
+	if defaultDocType == UserUpdateActivation || defaultDocType == UserUpdateEmail || defaultDocType == UserUpdatePassword || defaultDocType == UserAddPasswordUrlBase || defaultDocType == UserRemovePasswordUrlBase {
 		UserUpdate = UserUpdateActivation
 		defaultDocType = UserUpdate
 	} else if defaultDocType == DeviceInfoUpdateSortOption || defaultDocType == DeviceInfoUpdateLang {
@@ -73,6 +76,7 @@ func UpdateNonDicDB(defaultDocType int, structFromReq interface{}, db *mgo.Datab
 	return
 }
 
+// Only updating on XxxInCommon triggers versionNo increment. Coz versionNo is only useful to compare common content on both server and client.
 func PrepareUpdateNonDicDocDB(defaultDocType int, structFromReq interface{}) (docToSave interface{}, err error) {
 	d := reflect.ValueOf(structFromReq)
 	if d.Kind() == reflect.Ptr {
@@ -103,13 +107,28 @@ func PrepareUpdateNonDicDocDB(defaultDocType int, structFromReq interface{}) (do
 				"email":        d.FieldByName("NewEmail").String()},
 			"$inc": bson.M{
 				"versionNo": 1}}
+	case UserAddPasswordUrlBase:
+		uuid.SwitchFormat(uuid.Clean, false)
+		uniqueUrlBase := uuid.NewV4().String()
+		docToSave = bson.M{
+			"$push": bson.M{
+				"passwordResettingUrlBases": bson.M{"passwordResettingUrlBase": uniqueUrlBase,
+					"timeStamp": time.Now().UnixNano()}},
+			"$set": bson.M{
+				"lastModified": time.Now().UnixNano()}}
+	case UserRemovePasswordUrlBase:
+		// A uniqueUrl is only valid for one hour.
+		y := time.Now().UnixNano() - (3.6e+12)
+		docToSave = bson.M{
+			"$pull": bson.M{
+				"passwordResettingUrlBases": bson.M{"timeStamp": bson.M{"$lt": y}}},
+			"$set": bson.M{
+				"lastModified": time.Now().UnixNano()}}
 	case UserUpdatePassword:
 		docToSave = bson.M{
 			"$set": bson.M{
 				"lastModified": time.Now().UnixNano(),
-				"password":     d.FieldByName("NewPassword").String()},
-			"$inc": bson.M{
-				"versionNo": 1}}
+				"password":     d.FieldByName("NewPassword").String()}}
 	case DeviceTokensUpdateTokens:
 		accessToken, refreshToken := GenerateTokens(true)
 		docToSave = bson.M{

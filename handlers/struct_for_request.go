@@ -14,11 +14,11 @@ type ReqSignUpOrIn struct {
 }
 
 type ReqResetPassword struct {
-	NewPassword string
+	NewPassword string `json:"newPassword"`
 }
 
 type ReqUpdateEmail struct {
-	NewEmail string
+	NewEmail string `json:"newEmail"`
 }
 
 type ReqRenewTokens struct {
@@ -29,45 +29,57 @@ type ReqRenewTokens struct {
 
 // RequestId appears together with client UUID to locate the list to put RequestId into.
 type ReqUser struct {
-	RequestId  string
-	DeviceUUID string
-	User       UserInCommon
+	RequestId  string       `json:"requestId"`
+	DeviceUUID string       `json:"deviceUUID"`
+	User       UserInCommon `json:"user"`
+}
+
+type ReqDeviceInfoNew struct {
+	RequestId  string                `json:"requestId"`
+	DeviceUUID string                `json:"deviceUUID"`
+	DeviceInfo DeviceInfoInCommonNew `json:"deviceInfo"`
 }
 
 type ReqDeviceInfo struct {
-	RequestId  string
-	DeviceUUID string
-	DeviceInfo DeviceInfoInCommon
+	RequestId  string             `json:"requestId"`
+	DeviceUUID string             `json:"deviceUUID"`
+	DeviceInfo DeviceInfoInCommon `json:"deviceInfo"`
 }
 
 // Request for card(s) do not provide user id since it can be got from param in URL
+type ReqCardNew struct {
+	RequestId  string          `json:"requestId"`
+	DeviceUUID string          `json:"deviceUUID"`
+	Card       CardInCommonNew `json:"card"`
+}
+
 type ReqCard struct {
-	RequestId  string
-	DeviceUUID string
-	Card       CardInCommon
+	RequestId  string       `json:"requestId"`
+	DeviceUUID string       `json:"deviceUUID"`
+	Card       CardInCommon `json:"card"`
 }
 
 type ReqCards struct {
-	RequestId  string
-	DeviceUUID string
-	Cards      []CardInCommon
+	RequestId  string         `json:"requestId"`
+	DeviceUUID string         `json:"deviceUUID"`
+	Cards      []CardInCommon `json:"cards"`
 }
 
 type CardsVerList struct {
-	Id        bson.ObjectId
-	VersionNo int64
+	Id        bson.ObjectId `json:"id"`
+	VersionNo int64         `json:"versionNo"`
 }
 
 type ReqSync struct {
-	RequestId  string
-	DeviceUUID string
-	User       UserInCommon
-	DeviceInfo DeviceInfoInCommon
+	RequestId  string             `json:"requestId"`
+	DeviceUUID string             `json:"deviceUUID"`
+	User       UserInCommon       `json:"user"`
+	DeviceInfo DeviceInfoInCommon `json:"deviceInfo"`
 	// A map with id and versionNo
 	// Deleted cards are not included in the map. If it is not deleted on server, just add it back to the client again witht the sync response.
-	CardList []CardsVerList
+	CardList []CardsVerList `json:"cardList"`
 }
 
 type ReqWords struct {
-	WordsText string
+	WordsText string `json:"wordsText"`
 }

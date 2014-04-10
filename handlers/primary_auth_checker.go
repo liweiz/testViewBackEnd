@@ -20,6 +20,13 @@ func GateKeeper() martini.Handler {
 	}
 }
 
+// For token exchange only
+func GateKeeperExchange() martini.Handler {
+	return func(db *mgo.Database, r *http.Request, rw http.ResponseWriter, logger *log.Logger) {
+		TokenExchangeHandler(db, r, rw, logger)
+	}
+}
+
 func PrimaryAuthHandler(db *mgo.Database, r *http.Request, rw http.ResponseWriter, logger *log.Logger) {
 	isValid, err := ValidatePrimaryAuth(db, r)
 	if !isValid {
@@ -32,6 +39,21 @@ func PrimaryAuthHandler(db *mgo.Database, r *http.Request, rw http.ResponseWrite
 			} else {
 				http.Error(rw, err.Error(), http.StatusInternalServerError)
 			}
+		}
+	}
+}
+
+// The action is triggered by access err message: "Token expired" received by client. So there has to be an unsuccessful access attempt before so that this err message could be sent from server. This indicates only expired accessToken can be exchanged.
+func TokenExchangeHandler(db *mgo.Database, r *http.Request, rw http.ResponseWriter, logger *log.Logger) {
+	isValid, err := ValidatePrimaryAuth(db, r)
+	if isValid {
+		msg := "AccessToken still valid, no need to exchange for a new set."
+		WriteLog(msg, logger)
+		http.Error(rw, msg, http.StatusBadRequest)
+	} else if err != nil {
+		if err.Error() != "Token expired" {
+			WriteLog(err.Error(), logger)
+			http.Error(rw, err.Error(), http.StatusBadRequest)
 		}
 	}
 }
