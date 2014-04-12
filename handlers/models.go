@@ -60,8 +60,8 @@ type UserInCommon struct {
 	VersionNo int64         `bson:"versionNo" json:"versionNo"`
 }
 
-type PasswordResettingUrlBasePair struct {
-	PasswordResettingUrlBase string `bson:"passwordResettingUrlBase" json:"passwordResettingUrlBase"`
+type PasswordResettingUrlCodePair struct {
+	PasswordResettingUrlCode string `bson:"passwordResettingUrlCode" json:"passwordResettingUrlCode"`
 	TimeStamp                int64  `bson:"timeStamp" json:"timeStamp"`
 }
 
@@ -74,11 +74,11 @@ type User struct {
 	// Server side only
 	LastModified      int64  `bson:"lastModified" json:"lastModified"`
 	CreatedAt         int64  `bson:"createdAt" json:"createdAt"`
-	Password          string `bson:"password" json:"password"`
+	Password          []byte `bson:"password" json:"password"`
 	IsDeleted         bool   `bson:"isDeleted" json:"isDeleted"`
-	ActivationUrlBase string `bson:"activationUrlBase" json:"activationUrlBase"`
+	ActivationUrlCode string `bson:"activationUrlCode" json:"activationUrlCode"`
 	// PasswordResettingUrls is a url/timestamp pair. Expired urls will be evaluated and cleaned up each time a new password-resetting request is received by server.
-	PasswordResettingUrlBases []PasswordResettingUrlBasePair `bson:"passwordResettingUrlBases" json:"passwordResettingUrlBases"`
+	PasswordResettingUrlCodes []PasswordResettingUrlCodePair `bson:"passwordResettingUrlCodes" json:"passwordResettingUrlCodes"`
 	// For versionNo calculation, newVersionNo = HighestVersionNo + 1
 	// RequestProcessed and HasCards have no effect on VersionNo. In other words, no VersionNo change when either of these two changes.
 }

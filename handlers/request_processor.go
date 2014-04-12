@@ -5,11 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/go-martini/martini"
-	"github.com/twinj/uuid"
+	// "github.com/twinj/uuid"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"log"
 	"net/http"
+	// "path"
 	"reflect"
 	"strings"
 )
@@ -56,6 +57,18 @@ func ProcessedResponseGenerator(route int, setRequestProcessed bool) martini.Han
 	}
 }
 
+func ProcessedResponseGeneratorPasswordResetting() martini.Handler {
+	return func(db *mgo.Database, v *Vehicle, req *http.Request, params martini.Params, rw http.ResponseWriter, logger *log.Logger) {
+		err := ProcessRequest(db, PasswordResetting, v.Criteria, v.ReqStruct, req, nil, params)
+		if err == nil {
+			rw.WriteHeader(http.StatusOK)
+		} else if err != nil {
+			WriteLog(err.Error(), logger)
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+		}
+	}
+}
+
 func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq interface{}, req *http.Request, structForRes interface{}, params martini.Params) (err error) {
 	m := req.Method
 	// x and v are struct corresponding to JSON, so, to get the parts we need, there's one step further needed.
@@ -91,32 +104,7 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 			if err == nil {
 				err = SetResBodyPart(v, "DeviceInfo", reflect.ValueOf(resultDeviceInfo))
 			}
-		case OneActivationEmail:
-			var aUser User
-			err = db.C("users").Find(bson.M{"_id": bson.ObjectIdHex(params["user_id"])}).One(&aUser)
-			if err == nil {
-				uniqueUrl := req.URL + "/" + aUser.ActivationUrlBase
-				err = GenerateEmail(emailForActivation, uniqueUrl, aUser.Email)
-			}
-		case OnePasswordResettingEmail:
-			_, err = UpdateNonDicDB(UserAddPasswordUrlBase, structFromReq, db, params, bson.ObjectIdHex(params["user_id"]))
-			if err == nil {
-				var aUser User
-				err = db.C("users").Find(bson.M{"_id": bson.ObjectIdHex(params["user_id"])}).One(&aUser)
-				if err == nil {
-					l := len(aUser.PasswordResettingUrlBases) - 1
-					if l > 0 {
-						uniqueUrlBase := aUser.PasswordResettingUrlBases[l].PasswordResettingUrlBase
-						uniqueUrl := req.URL + "/" + uniqueUrlBase
-						err = GenerateEmail(emailForPasswordResetting, uniqueUrl, aUser.Email)
-						if err == nil {
-							_, _ = UpdateNonDicDB(UserRemovePasswordUrlBase, structFromReq, db, params, bson.ObjectIdHex(params["user_id"]))
-						}
-					} else {
-						err = errors.New("Empty PasswordResettingUrlBases array, previous insertion failed.")
-					}
-				}
-			}
+
 		// case dicTranslation:
 		// case dicDetail:
 		default:
@@ -124,7 +112,6 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 		}
 	} else if m == "POST" {
 		switch route {
-		// Sign up
 		/*
 			SignUp flow:
 			1. Client sends email and password to server
@@ -195,6 +182,14 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 					}
 				}
 			}
+		case ForgotPassword:
+			var aUser User
+			err = db.C("users").Find(criteria).One(&aUser)
+			if err == mgo.ErrNotFound {
+				err = errors.New("User does not exist.")
+			} else if err == nil {
+				err = SendEmail(EmailForPasswordResetting, db, req, params, aUser.Id)
+			}
 		case RenewTokens:
 			var r TokensInCommon
 			r, err = SetGetDeviceTokens(bson.ObjectIdHex(params["user_id"]), structFromReq, db)
@@ -247,7 +242,13 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 					}
 				}
 			}
-		// Resetting password goes through html, not here.
+		case PasswordResetting:
+			userId := bson.ObjectIdHex(params["user_id"])
+			_, err = UpdateNonDicDB(UserUpdatePassword, structFromReq, db, params, userId)
+			if err == nil {
+				_, _ = UpdateNonDicDB(UserRemovePasswordUrlCodeRoutinely, nil, db, params, userId)
+				_ = RemoveUserPasswordUrlCodeOne(db, params, userId)
+			}
 		// Activating only changes email after user being activated. It goes through html, not here, either.
 		case Sync:
 			userId := bson.ObjectIdHex(params["user_id"])

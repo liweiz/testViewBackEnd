@@ -16,6 +16,7 @@ import (
 const (
 	SignUp = iota
 	SignIn
+	ForgotPassword
 	RenewTokens
 	NewDeviceInfo
 	OneDeviceInfo
@@ -86,6 +87,16 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 				}
 			}
 		}
+	case ForgotPassword:
+		if m == "POST" {
+			reqStruct := &ReqForgotPassword{}
+			err = GetStructFromReq(req, reqStruct)
+			if err == nil {
+				c := bson.M{
+					"email": reqStruct.Email}
+				PrepareVehicle(ctx, reqStruct, nil, c, "", "")
+			}
+		}
 	case RenewTokens:
 		if m == "POST" {
 			reqStruct := &ReqRenewTokens{}
@@ -135,43 +146,18 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 				PrepareVehicle(ctx, reqStruct, resStruct, nil, reqStruct.RequestId, reqStruct.DeviceUUID)
 			}
 		}
-	case OneActivationEmail:
-		// Send an email with the activation link. E.g., http://www.xxx.com/:user_id/activaation/:activation_code
-		if m == "GET" {
-			/*
-				No request body since it's a GET call from client.
-				The whole activation process:
-				1. User presses the activation url in the activation email sent to the user's email. Only need to generate url once since activation is a one time activity.
-				2. A webpage is shown in user's browser. If it is not activated before, the html shows message: account activated. Otherwise, the web page shows message: account has been activated already.
-				3. The clients will update the activated state through the next sync request.
-			*/
-			resStruct := &ResActivation{}
-			idToCheck := bson.ObjectIdHex(params["user_id"])
-			c := bson.M{
-				"_id": idToCheck}
-			PrepareVehicle(ctx, nil, resStruct, c, "", "")
-		}
 	case PasswordResetting:
-		// Should serve html here
 		// Send an email with the password resetting link. E.g., http://www.xxx.com/users/:user_id/passwordresetting/:passwordresetting_code, :passwordresetting_code is used as a unique one time location to reset the password. The location is only valid once. Once being loaded, it becomes invalid. Therefore, to reset password again, user has to use the client to send another email with a new link to resetting password page. The disposable setting of valid link could prevent the page being abused.
-		if m == "GET" {
-			/*
-				No request body since it's a GET call from client.
-
-				The whole resetting process:
-				1. User presses the password resetting button in the activation email sent to the user's email.
-				2. A webpage is shown in user's browser. If the link is not valid, the html shows the interface to reset the password. Otherwise, the web page shows message: invalid link, please require a new link by pressing the resetting button in your app.
-			*/
-		} else if m == "POST" {
+		if m == "POST" {
 			// This is for resetting password.
 			reqStruct := &ReqResetPassword{}
-			resStruct := &ResResetPassword{}
+			// Only a 200 header needed for successful request, no need to have body here.
 			err = GetStructFromReq(req, reqStruct)
 			if err == nil {
 				idToCheck := bson.ObjectIdHex(params["user_id"])
 				c := bson.M{
 					"_id": idToCheck}
-				PrepareVehicle(ctx, reqStruct, resStruct, c, "", "")
+				PrepareVehicle(ctx, reqStruct, nil, c, "", "")
 			}
 		}
 	case Sync:

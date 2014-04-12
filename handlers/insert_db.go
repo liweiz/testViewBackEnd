@@ -1,6 +1,7 @@
 package testView
 
 import (
+	"code.google.com/p/go.crypto/bcrypt"
 	"errors"
 	"fmt"
 	"github.com/go-martini/martini"
@@ -97,20 +98,25 @@ func PrepareNewNonDicDocDB(defaultDocType int, structFromReq interface{}, userId
 			"isDeleted":    false}
 	case UserNew:
 		uuid.SwitchFormat(uuid.Clean, false)
-		uniqueUrlBase := uuid.NewV4().String()
-		docToSave = bson.M{
-			// UserInCommon
-			"activated": false,
-			"email":     d.FieldByName("Email").String(),
-			"_id":       newId,
-			"versionNo": 1,
+		uniqueUrlCode := uuid.NewV4().String()
+		var hashedPassword []byte
+		hashedPassword, err = bcrypt.GenerateFromPassword([]byte(d.FieldByName("Password").String()), bcrypt.DefaultCost)
+		if err == nil {
+			docToSave = bson.M{
+				// UserInCommon
+				"activated": false,
+				"email":     d.FieldByName("Email").String(),
+				"_id":       newId,
+				"versionNo": 1,
 
-			//Non UserInCommon part
-			"lastModified":      time.Now().UnixNano(),
-			"createdAt":         time.Now().UnixNano(),
-			"isDeleted":         false,
-			"password":          d.FieldByName("Password").String(),
-			"activationUrlBase": uniqueUrlBase}
+				//Non UserInCommon part
+				"lastModified":      time.Now().UnixNano(),
+				"createdAt":         time.Now().UnixNano(),
+				"isDeleted":         false,
+				"password":          hashedPassword,
+				"activationUrlCode": uniqueUrlCode}
+		}
+
 	case DeviceTokensNew:
 		accessToken, refreshToken := GenerateTokens(true)
 		docToSave = bson.M{

@@ -1,6 +1,7 @@
 package testView
 
 import (
+	"code.google.com/p/go.crypto/bcrypt"
 	"encoding/base64"
 	"errors"
 	"github.com/go-martini/martini"
@@ -13,7 +14,7 @@ import (
 	"time"
 )
 
-// GateKeeper is not needed for signUp/signIn.
+// GateKeeper is not needed for signUp.
 func GateKeeper() martini.Handler {
 	return func(db *mgo.Database, r *http.Request, rw http.ResponseWriter, logger *log.Logger) {
 		PrimaryAuthHandler(db, r, rw, logger)
@@ -77,7 +78,8 @@ func MatchPrimaryAuth(auth *AuthInHeader, db *mgo.Database) (isMatched bool, err
 		var user User
 		err = db.C("users").Find(bson.M{"email": auth.Email}).One(&user)
 		if err == nil {
-			if auth.Password == user.Password {
+			err = bcrypt.CompareHashAndPassword(user.Password, []byte(auth.Password))
+			if err == nil {
 				isMatched = true
 			} else {
 				err = errors.New("Incorrect password")

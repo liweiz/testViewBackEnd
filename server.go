@@ -56,12 +56,14 @@ func main() {
 
 	m := My()
 	// Exchange for a new set of tokens. renewTokens
+	// Tested!!!
 	m.Post("/users/:user_id/tokens", testView.GateKeeperExchange(), testView.RequestPreprocessor(testView.RenewTokens), testView.ProcessedResponseGenerator(testView.RenewTokens, false))
 	// Update a user's device settings, e.g., language pair/sort option. OneDeviceInfoSortOption
 	m.Post("/users/:user_id/deviceinfo/:device_id/SortOption", testView.RequestPreprocessor(testView.OneDeviceInfoSortOption), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.OneDeviceInfoSortOption, false))
 	// Update a user's device settings, e.g., language pair/sort option. OneDeviceInfoLang
 	m.Post("/users/:user_id/deviceinfo/:device_id/Lang", testView.RequestPreprocessor(testView.OneDeviceInfoLang), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.OneDeviceInfoLang, false))
 	// Create a new deviceInfo
+	// Tested!!!
 	m.Post("/users/:user_id/deviceinfo", testView.GateKeeper(), testView.RequestPreprocessor(testView.NewDeviceInfo), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.NewDeviceInfo, true))
 	// Sync cards and user. sync
 	m.Post("/users/:user_id/sync", testView.RequestPreprocessor(testView.Sync), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.Sync, false))
@@ -70,24 +72,32 @@ func main() {
 	// Create a new card. newCard
 	m.Post("/users/:user_id/cards", testView.RequestPreprocessor(testView.NewCard), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.NewCard, true))
 	// Change a user's password.
-	m.Post("/users/:user_id/password/:password_resetting_code", testView.RequestPreprocessor(testView.OneUser), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.OneUser, false))
+	m.Post("/users/:user_id/password/:password_resetting_code", testView.UrlCodeChecker(), testView.RequestPreprocessor(testView.PasswordResetting), testView.ProcessedResponseGeneratorPasswordResetting())
+	// Send an email with url to change a user's password in the case of forgot-password.
+	// Tested!!!
+	m.Post("/users/forgotpassword", testView.RequestPreprocessor(testView.ForgotPassword), testView.ProcessedResponseGenerator(testView.ForgotPassword, false))
 	// Change a user's email. oneUser
 	m.Post("/users/:user_id/email", testView.RequestPreprocessor(testView.OneUser), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.OneUser, false))
 	// User signs in. signIn
-	m.Post("/users/signin", testView.RequestPreprocessor(testView.SignIn), testView.ProcessedResponseGenerator(testView.SignIn, false))
+	// Tested!!!
+	m.Post("/users/signin", testView.GateKeeper(), testView.RequestPreprocessor(testView.SignIn), testView.ProcessedResponseGenerator(testView.SignIn, false))
 	// Sign up a new user. signUp
+	// Tested!!!
 	m.Post("/users", testView.RequestPreprocessor(testView.SignUp), testView.ProcessedResponseGenerator(testView.SignUp, false))
 
 	// Get a card. oneCard
 	//m.Get("/users/:user_id/cards/:card_id")
 	// Activate a user. activation
+	// Tested!!!
 	m.Get("/users/:user_id/activation/:activation_code", testView.WebPageServer(testView.PageForActivation))
 	// Send an email with url to activate a user.
-	m.Get("/users/:user_id/activation", testView.ProcessedResponseGenerator(testView.OneActivationEmail, false))
+	// Tested!!!
+	m.Get("/users/:user_id/activation", testView.GateKeeper(), testView.EmailSender(testView.EmailForActivation))
 	// Serve the webpage to reset a user's password. passwordResetting
 	m.Get("/users/:user_id/password/:password_resetting_code", testView.WebPageServer(testView.PageForPasswordResetting))
 	// Send an email with url to change a user's password.
-	m.Get("/users/:user_id/password", testView.ProcessedResponseGenerator(testView.OnePasswordResettingEmail, false))
+	// Tested!!!
+	m.Get("/users/:user_id/password", testView.GateKeeper(), testView.EmailSender(testView.EmailForPasswordResetting))
 
 	// Delete a card. oneCard
 	m.Delete("/users/:user_id/cards/:card_id", testView.RequestPreprocessor(testView.OneCard), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.OneCard, true))
@@ -101,6 +111,13 @@ func main() {
 	// Get translation list based on words. dicWords
 	m.Post("/dic/:sourcelang/:targetlang", testView.RequestPreprocessor(testView.DicWords), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.DicWords, false))
 
+	// Serve assets
+	m.Get("/assets/css/bootstrap.min.css", testView.AssetsServer(testView.BootstrapCssMin))
+	m.Get("/assets/js/bootstrap.min.js", testView.AssetsServer(testView.BootstrapJsMin))
+	m.Get("/assets/css/account_activation.css", testView.AssetsServer(testView.CssPageForActivation))
+	m.Get("/assets/js/account_activation.js", testView.AssetsServer(testView.JsPageForActivation))
+	m.Get("/assets/css/password_resetting.css", testView.AssetsServer(testView.CssPageForPasswordResetting))
+	m.Get("/assets/js/password_resetting.js", testView.AssetsServer(testView.JsPageForPasswordResetting))
 	m.Run()
 }
 

@@ -1,6 +1,7 @@
 package testView
 
 import (
+	"code.google.com/p/go.crypto/bcrypt"
 	"errors"
 	"github.com/go-martini/martini"
 	"github.com/twinj/uuid"
@@ -14,8 +15,8 @@ const (
 	CardUpdate int = iota
 	UserUpdateActivation
 	UserUpdateEmail
-	UserAddPasswordUrlBase
-	UserRemovePasswordUrlBase
+	UserAddPasswordUrlCode
+	UserRemovePasswordUrlCodeRoutinely
 	UserUpdatePassword
 	DeviceTokensUpdateTokens
 	DeviceInfoUpdateSortOption
@@ -30,7 +31,7 @@ func UpdateNonDicDB(defaultDocType int, structFromReq interface{}, db *mgo.Datab
 	d, err = PrepareUpdateNonDicDocDB(defaultDocType, structFromReq)
 	var UserUpdate int
 	var DeviceInfoUpdate int
-	if defaultDocType == UserUpdateActivation || defaultDocType == UserUpdateEmail || defaultDocType == UserUpdatePassword || defaultDocType == UserAddPasswordUrlBase || defaultDocType == UserRemovePasswordUrlBase {
+	if defaultDocType == UserUpdateActivation || defaultDocType == UserUpdateEmail || defaultDocType == UserUpdatePassword || defaultDocType == UserAddPasswordUrlCode || defaultDocType == UserRemovePasswordUrlCodeRoutinely {
 		UserUpdate = UserUpdateActivation
 		defaultDocType = UserUpdate
 	} else if defaultDocType == DeviceInfoUpdateSortOption || defaultDocType == DeviceInfoUpdateLang {
@@ -107,28 +108,32 @@ func PrepareUpdateNonDicDocDB(defaultDocType int, structFromReq interface{}) (do
 				"email":        d.FieldByName("NewEmail").String()},
 			"$inc": bson.M{
 				"versionNo": 1}}
-	case UserAddPasswordUrlBase:
+	case UserAddPasswordUrlCode:
 		uuid.SwitchFormat(uuid.Clean, false)
-		uniqueUrlBase := uuid.NewV4().String()
+		uniqueUrlCode := uuid.NewV4().String()
 		docToSave = bson.M{
 			"$push": bson.M{
-				"passwordResettingUrlBases": bson.M{"passwordResettingUrlBase": uniqueUrlBase,
+				"passwordResettingUrlCodes": bson.M{"passwordResettingUrlCode": uniqueUrlCode,
 					"timeStamp": time.Now().UnixNano()}},
 			"$set": bson.M{
 				"lastModified": time.Now().UnixNano()}}
-	case UserRemovePasswordUrlBase:
+	case UserRemovePasswordUrlCodeRoutinely:
 		// A uniqueUrl is only valid for one hour.
 		y := time.Now().UnixNano() - (3.6e+12)
 		docToSave = bson.M{
 			"$pull": bson.M{
-				"passwordResettingUrlBases": bson.M{"timeStamp": bson.M{"$lt": y}}},
+				"passwordResettingUrlCodes": bson.M{"timeStamp": bson.M{"$lt": y}}},
 			"$set": bson.M{
 				"lastModified": time.Now().UnixNano()}}
 	case UserUpdatePassword:
-		docToSave = bson.M{
-			"$set": bson.M{
-				"lastModified": time.Now().UnixNano(),
-				"password":     d.FieldByName("NewPassword").String()}}
+		var hashedPassword []byte
+		hashedPassword, err = bcrypt.GenerateFromPassword([]byte(d.FieldByName("NewPassword").String()), bcrypt.DefaultCost)
+		if err == nil {
+			docToSave = bson.M{
+				"$set": bson.M{
+					"lastModified": time.Now().UnixNano(),
+					"password":     hashedPassword}}
+		}
 	case DeviceTokensUpdateTokens:
 		accessToken, refreshToken := GenerateTokens(true)
 		docToSave = bson.M{
@@ -151,5 +156,15 @@ func PrepareUpdateNonDicDocDB(defaultDocType int, structFromReq interface{}) (do
 	default:
 		err = errors.New("No matched document type for nonDic database.")
 	}
+	return
+}
+
+// This only happens when urlCode is not expired.
+func RemoveUserPasswordUrlCodeOne(db *mgo.Database, params martini.Params, userId bson.ObjectId) (err error) {
+	err = db.C("users").Update(bson.M{"_id": userId}, bson.M{
+		"$pull": bson.M{
+			"passwordResettingUrlCodes": bson.M{"passwordResettingUrlCode": params["password_resetting_code"]}},
+		"$set": bson.M{
+			"lastModified": time.Now().UnixNano()}})
 	return
 }

@@ -13,6 +13,10 @@ type ReqSignUpOrIn struct {
 	DeviceUUID string `json:"deviceUUID"`
 }
 
+type ReqForgotPassword struct {
+	Email string `json:"email"`
+}
+
 type ReqResetPassword struct {
 	NewPassword string `json:"newPassword"`
 }

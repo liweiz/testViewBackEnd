@@ -1,15 +1,15 @@
 {{ define "content" }}
-<p>Thank you for signing up for XXXXXXXX! Due to security reasons, a new account needs to be activated within 7 days after the sign-up. Otherwise, an unactivated account will not be accessible.</p>
+<p>Welcome to Remolet.</p>
 
-<p>Please use the hyperlink below to activate your account:</p>
+<p>Please click the hyperlink below to activate your account within 5 days after your sign-up. An unactivated account will not be accessible otherwise.</p>
 
-  {{ .UniqueUrl }}
+  <a href="{{ .MyHost }}{{ .UniqueUrl }}">{{ .MyHost }}{{ .UniqueUrl }}</a>
 
-<p>You can also copy and paste the address above into your web browser's
-<p>address bar and press ENTER.</p>
+<p>You can also copy and paste the address above into your web browser's address bar and press ENTER.</p>
 
-<p>If you didn't request this, you don't need to do anything; you won't
-receive any more email from us.</p>
+<p>If you didn't request this, you don't need to do anything. There will be no more email from us.</p>
 
 <p>Please do not reply to this e-mail.</p>
+
+<p>The Remolet Team</p>
 {{ end }}

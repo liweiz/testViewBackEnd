@@ -7,7 +7,7 @@ $('form').on('submit', function(){
       passed = true
       var url = $(location).attr('href')
       var content = {};
-      content["password"] = $('#password1').val();
+      content["newPassword"] = $('#password1').val();
       $.ajax(url, {
         type: 'POST',
         contentType: 'application/json',
