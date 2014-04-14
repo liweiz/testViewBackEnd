@@ -5,7 +5,7 @@ import (
 	"errors"
 	"github.com/go-martini/martini"
 	// "io/ioutil"
-	"fmt"
+	// "fmt"
 	"labix.org/v2/mgo/bson"
 	"log"
 	"net/http"
@@ -20,9 +20,6 @@ const (
 	RenewTokens
 	NewDeviceInfo
 	OneDeviceInfo
-	OneDeviceInfoSortOption
-	OneDeviceInfoLang
-	OneUser
 	OneActivationEmail
 	OneActivationPage
 	OnePasswordResettingEmail
@@ -50,9 +47,6 @@ func RequestPreprocessor(route int) martini.Handler {
 // Both structs of req and res are returned as pointers.
 func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx martini.Context) (err error) {
 	m := req.Method
-	if route == OneDeviceInfoLang {
-		route = OneDeviceInfoSortOption
-	}
 	// Get request body and criteria for record(s) searching
 	switch route {
 	// Sign up
@@ -119,31 +113,19 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 			err = GetStructFromReq(req, reqStruct)
 			if err == nil {
 				PrepareVehicle(ctx, reqStruct, resStruct, nil, reqStruct.RequestId, reqStruct.DeviceUUID)
-				fmt.Println("reqResture: ", reqStruct)
-				fmt.Println("reqStruct.RequestId: ", reqStruct.RequestId)
-				fmt.Println("reqStruct.DeviceUUID: ", reqStruct.DeviceUUID)
 			}
 		}
-	case OneDeviceInfoSortOption:
+	case OneDeviceInfo:
 		if m == "POST" {
 			reqStruct := &ReqDeviceInfo{}
 			resStruct := &ResDeviceInfo{}
 			err = GetStructFromReq(req, reqStruct)
 			if err == nil {
 				c := bson.M{
-					"_id":        params["device_id"],
+					"_id":        bson.ObjectIdHex(params["device_id"]),
+					"belongTo":   bson.ObjectIdHex(params["user_id"]),
 					"deviceUUID": reqStruct.DeviceUUID}
 				PrepareVehicle(ctx, reqStruct, resStruct, c, reqStruct.RequestId, reqStruct.DeviceUUID)
-			}
-		}
-	case OneUser:
-		// No deleted user currently. If there is delete option for user, there should be a specific criteria bson.M for user operation.
-		if m == "POST" {
-			reqStruct := &ReqUser{}
-			resStruct := &ResUser{}
-			err = GetStructFromReq(req, reqStruct)
-			if err == nil {
-				PrepareVehicle(ctx, reqStruct, resStruct, nil, reqStruct.RequestId, reqStruct.DeviceUUID)
 			}
 		}
 	case PasswordResetting:

@@ -94,6 +94,13 @@ func CheckCardUniqueness(db *mgo.Database, params martini.Params, cardValueInReq
 // 	return
 // }
 
+// Ensure only one deviceInfo exists for any user and deviceUUID pair.
+func EnsureDeviceInfoUniqueness(db *mgo.Database, userId bson.ObjectId, aUUID string) (err error) {
+	var d DeviceInfo
+	err = db.C("deviceInfos").Find(bson.M{"belongTo": userId, "deviceUUID": aUUID}).One(&d)
+	return
+}
+
 // Default setting is the latest setting user uses. So compare all the deveiceInfo the user has and get the latest updated one to send to the new device as the initial settings on the device. Store it in db as well.
 func GetDefaultDeviceInfo(userId bson.ObjectId, db *mgo.Database) (info *DeviceInfoInCommon, err error) {
 	var r []DeviceInfo

@@ -168,6 +168,10 @@ type ResUser struct {
 	User UserInCommon `json:"user"`
 }
 
+type ResUserNewEmail struct {
+	NewEmail string `json:"newEmail"`
+}
+
 type ResResetPassword struct {
 	PasswordIsResetted bool `json:"passwordIsResetted"`
 }

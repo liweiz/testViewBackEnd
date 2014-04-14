@@ -6,7 +6,7 @@ import (
 	//"log"
 	"encoding/json"
 	//"github.com/go-martini/martini"
-	// "labix.org/v2/mgo/bson"
+	"labix.org/v2/mgo/bson"
 	"me/testView/handlers"
 	"net/http"
 	"net/http/httptest"
@@ -19,13 +19,14 @@ const (
 	// password for "matt.z.lw@gmail.com": "aA1~aA1~" or "aA1~aA1~!"
 	TestPassword                = "aA1~aA1~"
 	TestPasswordV               = "aA1~aA1~!"
-	TestUserId                  = "53497c7abd7e550ce4000001"
-	TestAccessToken             = "f9c5a8789a0b4809943ad71eb008030f"
-	TestRefreshToken            = "cf45e5f25c4045a5911ade4a8ed9ace9"
+	TestUserId                  = "534b2149bd7e5551fc000001"
+	TestAccessToken             = "4db0d37878b54392acd054f2ac719a7e"
+	TestRefreshToken            = "cf6c657b94f848f5bfa85fd9c7536912"
 	TestDeviceUUID              = "zzzzzzzz"
-	TestRequestId               = "zzzzzzzzz"
-	TestPasswordResettingURLEnd = "664b7b1034fd4b1b8dac8b6867aa9fcf"
-	TestActivationURLEnd        = "c70c686b2316411badb159f4074a803c"
+	TestUuidId                  = "534b24b0bd7e555128000001"
+	TestRequestId               = "z"
+	TestPasswordResettingURLEnd = ""
+	TestActivationURLEnd        = "8a643f595f0a48af921df23e267d11bc"
 )
 
 // func TestSignUp(t *testing.T) {
@@ -65,12 +66,43 @@ const (
 // 	os.Stdout.Write(w.Body.Bytes())
 // }
 
+// func TestRenewTokens(t *testing.T) {
+// 	m := My()
+// 	reqBodyStruct := testView.ReqRenewTokens{
+// 		DeviceUUID: TestDeviceUUID,
+// 		Tokens:     testView.TokensInCommon{TestAccessToken, TestRefreshToken}}
+// 	reqBody, _ := json.MarshalIndent(reqBodyStruct, "", "	")
+// 	os.Stdout.Write(reqBody)
+// 	body := bytes.NewReader(reqBody)
+// 	url := "/users/" + TestUserId + "/tokens"
+// 	// Use this to simulate use token with wrong userId.
+// 	// url := "/users/53498c7abd7e550ce4000002/tokens"
+// 	m.Post("/users/:user_id/tokens", testView.GateKeeperExchange(), testView.RequestPreprocessor(testView.RenewTokens), testView.ProcessedResponseGenerator(testView.RenewTokens, false))
+// 	req, _ := http.NewRequest("POST", url, body)
+// 	req.Header.Set("Authorization", "Bearer "+TestAccessToken)
+// 	w := httptest.NewRecorder()
+// 	m.ServeHTTP(w, req)
+// 	fmt.Println("code:", w.Code)
+// 	os.Stdout.Write(w.Body.Bytes())
+// }
+
 // func TestActivationEmail(t *testing.T) {
 // 	m := My()
 // 	url := "/users/" + TestUserId + "/activation"
 // 	m.Get("/users/:user_id/activation", testView.GateKeeper(), testView.EmailSender(testView.EmailForActivation))
 // 	req, _ := http.NewRequest("GET", url, nil)
 // 	req.Header.Set("Authorization", "Bearer "+TestAccessToken)
+// 	w := httptest.NewRecorder()
+// 	m.ServeHTTP(w, req)
+// 	fmt.Println("code:", w.Code)
+// 	os.Stdout.Write(w.Body.Bytes())
+// }
+
+// func TestClickActivationLink(t *testing.T) {
+// 	m := My()
+// 	url := "/users/" + TestUserId + "/activation/" + TestActivationURLEnd
+// 	m.Get("/users/:user_id/activation/:activation_code", testView.WebPageServer(testView.PageForActivation))
+// 	req, _ := http.NewRequest("GET", url, nil)
 // 	w := httptest.NewRecorder()
 // 	m.ServeHTTP(w, req)
 // 	fmt.Println("code:", w.Code)
@@ -105,17 +137,6 @@ const (
 // 	m.Get("/assets/css/password_resetting.css", testView.AssetsServer(testView.CssPageForPasswordResetting))
 // 	m.Get("/assets/js/password_resetting.js", testView.AssetsServer(testView.JsPageForPasswordResetting))
 // 	req, _ := http.NewRequest("POST", url, body)
-// 	w := httptest.NewRecorder()
-// 	m.ServeHTTP(w, req)
-// 	fmt.Println("code:", w.Code)
-// 	// os.Stdout.Write(w.Body.Bytes())
-// }
-
-// func TestClickActivationLink(t *testing.T) {
-// 	m := My()
-// 	url := "/users/" + TestUserId + "/activation/" + TestActivationURLEnd
-// 	m.Get("/users/:user_id/activation/:activation_code", testView.WebPageServer(testView.PageForActivation))
-// 	req, _ := http.NewRequest("GET", url, nil)
 // 	w := httptest.NewRecorder()
 // 	m.ServeHTTP(w, req)
 // 	fmt.Println("code:", w.Code)
@@ -156,8 +177,10 @@ const (
 // 	reqBody, _ := json.MarshalIndent(reqBodyStruct, "", "	")
 // 	os.Stdout.Write(reqBody)
 // 	body := bytes.NewReader(reqBody)
-// 	url := "/users/533df9eebd7e554fa0000001/deviceinfo"
-// 	m.Post("/users/:user_id/deviceinfo", testView.GateKeeper(), testView.RequestPreprocessor(testView.NewDeviceInfo), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.NewDeviceInfo, true))
+// 	url := "/users/" + TestUserId + "/deviceinfos"
+// 	// Use this to simulate use token with wrong userId.
+// 	// url := "/users/53498c7abd7e550ce4000002/deviceinfo"
+// 	m.Post("/users/:user_id/deviceinfos", testView.GateKeeper(), testView.NonActivationBlocker(), testView.RequestPreprocessor(testView.NewDeviceInfo), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.NewDeviceInfo, true))
 // 	req, _ := http.NewRequest("POST", url, body)
 // 	req.Header.Set("Authorization", "Bearer "+TestAccessToken)
 // 	w := httptest.NewRecorder()
@@ -166,16 +189,28 @@ const (
 // 	os.Stdout.Write(w.Body.Bytes())
 // }
 
-// func TestRenewTokens(t *testing.T) {
+// func TestUpdateDeviceInfo(t *testing.T) {
 // 	m := My()
-// 	reqBodyStruct := testView.ReqRenewTokens{
+// 	reqBodyStruct := testView.ReqDeviceInfoNew{
+// 		RequestId:  TestRequestId,
 // 		DeviceUUID: TestDeviceUUID,
-// 		Tokens:     testView.TokensInCommon{TestAccessToken, TestRefreshToken}}
+// 		DeviceInfo: testView.DeviceInfoInCommonNew{
+// 			BelongTo:   bson.ObjectIdHex(TestUserId),
+// 			DeviceUUID: TestDeviceUUID,
+// 			SourceLang: "简体中文",
+// 			TargetLang: "English",
+// 			SortOption: "timeModifiedAscending",
+// 			IsLoggedIn: true,
+// 			RememberMe: true}}
+// 	fmt.Println(reqBodyStruct)
 // 	reqBody, _ := json.MarshalIndent(reqBodyStruct, "", "	")
 // 	os.Stdout.Write(reqBody)
 // 	body := bytes.NewReader(reqBody)
-// 	url := "/users/533df9eebd7e554fa0000001/tokens"
-// 	m.Post("/users/:user_id/tokens", testView.GateKeeperExchange(), testView.RequestPreprocessor(testView.RenewTokens), testView.ProcessedResponseGenerator(testView.RenewTokens, false))
+// 	// url := "/users/" + TestUserId + "/deviceinfos/" + "TestUuidId"
+// 	url := "/users/" + TestUserId + "/deviceinfos/" + TestUuidId
+// 	// Use this to simulate use token with wrong userId.
+// 	// url := "/users/53498c7abd7e550ce4000002/deviceinfo"
+// 	m.Post("/users/:user_id/deviceinfos/:device_id", testView.GateKeeper(), testView.RequestPreprocessor(testView.OneDeviceInfo), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.OneDeviceInfo, true))
 // 	req, _ := http.NewRequest("POST", url, body)
 // 	req.Header.Set("Authorization", "Bearer "+TestAccessToken)
 // 	w := httptest.NewRecorder()

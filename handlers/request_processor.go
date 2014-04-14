@@ -89,12 +89,6 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 			if err == nil {
 				err = SetResBodyPart(v, "Cards", reflect.ValueOf([]CardInCommon{resultCard}))
 			}
-		case OneUser:
-			var resultUser UserInCommon
-			err = db.C("users").Find(criteria).Select(GetSelector(SelectUserInCommon)).One(&resultUser)
-			if err == nil {
-				err = SetResBodyPart(v, "User", reflect.ValueOf(resultUser))
-			}
 		case OneDeviceInfo:
 			var resultDeviceInfo DeviceInfoInCommon
 			err := db.C("deviceInfos").Find(bson.M{
@@ -201,39 +195,30 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 			}
 		case NewDeviceInfo:
 			// The only case a new deviceInfo created by client is after signing in.
-			var newId bson.ObjectId
-			newId, err = InsertNonDicDB(DeviceInfoNew, structFromReq, db, bson.ObjectIdHex(params["user_id"]))
+			userId := bson.ObjectIdHex(params["user_id"])
+			err = EnsureDeviceInfoUniqueness(db, userId, x.FieldByName("DeviceUUID").String())
 			if err == nil {
-				var r DeviceInfoInCommon
-				err = db.C("deviceInfos").Find(bson.M{
-					"_id": newId}).Select(GetSelector(SelectDeviceInfoInCommon)).One(&r)
-				fmt.Println("DeviceInfoInCommon: ", r)
-				if err == nil {
-					err = SetResBodyPart(v.FieldByName("DeviceInfo"), "DeviceInfo", reflect.ValueOf(r))
-				}
-			}
-		case OneDeviceInfoSortOption:
-			// When log in on a new device or a device that the account has been deleted before, both indicate no deviceInfo on the device,
-			var n int
-			n, err = db.C("deviceInfos").Find(criteria).Count()
-			if n <= 0 || err == mgo.ErrNotFound {
-				var selector bson.M
-				selector, err = UpdateNonDicDB(DeviceInfoUpdateSortOption, structFromReq, db, params, bson.ObjectIdHex(params["user_id"]))
+				err = errors.New("DeviceInfo already exists, please update it if needed.")
+			} else if err == mgo.ErrNotFound {
+				var newId bson.ObjectId
+				newId, err = InsertNonDicDB(DeviceInfoNew, structFromReq, db, userId)
 				if err == nil {
 					var r DeviceInfoInCommon
-					err = db.C("deviceInfos").Find(selector).Select(GetSelector(SelectDeviceInfoInCommon)).One(&r)
+					err = db.C("deviceInfos").Find(bson.M{
+						"_id": newId}).Select(GetSelector(SelectDeviceInfoInCommon)).One(&r)
+					fmt.Println("DeviceInfoInCommon: ", r)
 					if err == nil {
 						err = SetResBodyPart(v.FieldByName("DeviceInfo"), "DeviceInfo", reflect.ValueOf(r))
 					}
 				}
 			}
-		case OneDeviceInfoLang:
+		case OneDeviceInfo:
 			// When log in on a new device or a device that the account has been deleted before, both indicate no deviceInfo on the device,
-			var n int
-			n, err = db.C("deviceInfos").Find(criteria).Count()
-			if n <= 0 || err == mgo.ErrNotFound {
+			var q DeviceInfo
+			err = db.C("deviceInfos").Find(criteria).One(&q)
+			if err == nil {
 				var selector bson.M
-				selector, err = UpdateNonDicDB(DeviceInfoUpdateLang, structFromReq, db, params, bson.ObjectIdHex(params["user_id"]))
+				selector, err = UpdateNonDicDB(DeviceInfoUpdate, structFromReq, db, params, bson.ObjectIdHex(params["user_id"]))
 				if err == nil {
 					var r DeviceInfoInCommon
 					err = db.C("deviceInfos").Find(selector).Select(GetSelector(SelectDeviceInfoInCommon)).One(&r)

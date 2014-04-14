@@ -19,8 +19,7 @@ const (
 	UserRemovePasswordUrlCodeRoutinely
 	UserUpdatePassword
 	DeviceTokensUpdateTokens
-	DeviceInfoUpdateSortOption
-	DeviceInfoUpdateLang
+	DeviceInfoUpdate
 	DeviceInfoUpdateDicTier2
 	DeviceInfoUpdateDicTier3
 	DeviceInfoUpdateDicTier4
@@ -30,13 +29,9 @@ func UpdateNonDicDB(defaultDocType int, structFromReq interface{}, db *mgo.Datab
 	var d interface{}
 	d, err = PrepareUpdateNonDicDocDB(defaultDocType, structFromReq)
 	var UserUpdate int
-	var DeviceInfoUpdate int
 	if defaultDocType == UserUpdateActivation || defaultDocType == UserUpdateEmail || defaultDocType == UserUpdatePassword || defaultDocType == UserAddPasswordUrlCode || defaultDocType == UserRemovePasswordUrlCodeRoutinely {
 		UserUpdate = UserUpdateActivation
 		defaultDocType = UserUpdate
-	} else if defaultDocType == DeviceInfoUpdateSortOption || defaultDocType == DeviceInfoUpdateLang {
-		DeviceInfoUpdate = DeviceInfoUpdateSortOption
-		defaultDocType = DeviceInfoUpdate
 	}
 	if err == nil {
 		var name string
@@ -140,17 +135,13 @@ func PrepareUpdateNonDicDocDB(defaultDocType int, structFromReq interface{}) (do
 			"$set": bson.M{
 				"accessToken":         accessToken,
 				"refreshToken":        refreshToken,
-				"accessTokenExpireAt": time.Now().UnixNano() + (3.6e+12)*3,
+				"accessTokenExpireAt": time.Now().UnixNano() + (3.6e+12)/20,
 				"lastModified":        time.Now().UnixNano()}}
-	case DeviceInfoUpdateSortOption:
+	case DeviceInfoUpdate:
 		docToSave = bson.M{
 			"$set": bson.M{
 				"lastModified": time.Now().UnixNano(),
-				"sortOption":   d.FieldByName("DeviceInfo").FieldByName("SortOption").String()}}
-	case DeviceInfoUpdateLang:
-		docToSave = bson.M{
-			"$set": bson.M{
-				"lastModified": time.Now().UnixNano(),
+				"sortOption":   d.FieldByName("DeviceInfo").FieldByName("SortOption").String(),
 				"sourceLang":   d.FieldByName("DeviceInfo").FieldByName("SourceLang").String(),
 				"targetLang":   d.FieldByName("DeviceInfo").FieldByName("TargetLang").String()}}
 	default:

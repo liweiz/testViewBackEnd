@@ -4,6 +4,7 @@ import (
 	"code.google.com/p/go.crypto/bcrypt"
 	"encoding/base64"
 	"errors"
+	// "fmt"
 	"github.com/go-martini/martini"
 	"github.com/twinj/uuid"
 	"labix.org/v2/mgo"
@@ -16,20 +17,20 @@ import (
 
 // GateKeeper is not needed for signUp.
 func GateKeeper() martini.Handler {
-	return func(db *mgo.Database, r *http.Request, rw http.ResponseWriter, logger *log.Logger) {
-		PrimaryAuthHandler(db, r, rw, logger)
+	return func(db *mgo.Database, r *http.Request, rw http.ResponseWriter, logger *log.Logger, params martini.Params) {
+		PrimaryAuthHandler(db, r, rw, logger, params)
 	}
 }
 
 // For token exchange only
 func GateKeeperExchange() martini.Handler {
-	return func(db *mgo.Database, r *http.Request, rw http.ResponseWriter, logger *log.Logger) {
-		TokenExchangeHandler(db, r, rw, logger)
+	return func(db *mgo.Database, r *http.Request, rw http.ResponseWriter, logger *log.Logger, params martini.Params) {
+		TokenExchangeHandler(db, r, rw, logger, params)
 	}
 }
 
-func PrimaryAuthHandler(db *mgo.Database, r *http.Request, rw http.ResponseWriter, logger *log.Logger) {
-	isValid, err := ValidatePrimaryAuth(db, r)
+func PrimaryAuthHandler(db *mgo.Database, r *http.Request, rw http.ResponseWriter, logger *log.Logger, params martini.Params) {
+	isValid, err := ValidatePrimaryAuth(db, r, params)
 	if !isValid {
 		if err != nil {
 			WriteLog(err.Error(), logger)
@@ -45,8 +46,8 @@ func PrimaryAuthHandler(db *mgo.Database, r *http.Request, rw http.ResponseWrite
 }
 
 // The action is triggered by access err message: "Token expired" received by client. So there has to be an unsuccessful access attempt before so that this err message could be sent from server. This indicates only expired accessToken can be exchanged.
-func TokenExchangeHandler(db *mgo.Database, r *http.Request, rw http.ResponseWriter, logger *log.Logger) {
-	isValid, err := ValidatePrimaryAuth(db, r)
+func TokenExchangeHandler(db *mgo.Database, r *http.Request, rw http.ResponseWriter, logger *log.Logger, params martini.Params) {
+	isValid, err := ValidatePrimaryAuth(db, r, params)
 	if isValid {
 		msg := "AccessToken still valid, no need to exchange for a new set."
 		WriteLog(msg, logger)
@@ -59,12 +60,12 @@ func TokenExchangeHandler(db *mgo.Database, r *http.Request, rw http.ResponseWri
 	}
 }
 
-func ValidatePrimaryAuth(db *mgo.Database, r *http.Request) (isValid bool, err error) {
+func ValidatePrimaryAuth(db *mgo.Database, r *http.Request, params martini.Params) (isValid bool, err error) {
 	var auth *AuthInHeader
 	auth, err = GetAuthInHeader(r)
 	if err == nil {
 		var isMatched bool
-		isMatched, err = MatchPrimaryAuth(auth, db)
+		isMatched, err = MatchPrimaryAuth(auth, db, params)
 		if isMatched {
 			isValid = true
 		}
@@ -73,7 +74,7 @@ func ValidatePrimaryAuth(db *mgo.Database, r *http.Request) (isValid bool, err e
 }
 
 // PrimaryAuth means password or accessToken. isMatched simply means it is the same as the one stored in db. But it may already be expired.
-func MatchPrimaryAuth(auth *AuthInHeader, db *mgo.Database) (isMatched bool, err error) {
+func MatchPrimaryAuth(auth *AuthInHeader, db *mgo.Database, params martini.Params) (isMatched bool, err error) {
 	if auth.AuthType == "Basic" {
 		var user User
 		err = db.C("users").Find(bson.M{"email": auth.Email}).One(&user)
@@ -88,7 +89,10 @@ func MatchPrimaryAuth(auth *AuthInHeader, db *mgo.Database) (isMatched bool, err
 	}
 	if auth.AuthType == "Bearer" {
 		var myDeviceTokens DeviceTokens
-		err = db.C("deviceTokens").Find(bson.M{"accessToken": auth.AccessToken}).One(&myDeviceTokens)
+		err = db.C("deviceTokens").Find(bson.M{"accessToken": auth.AccessToken, "belongTo": bson.ObjectIdHex(params["user_id"])}).One(&myDeviceTokens)
+		if err == mgo.ErrNotFound {
+			err = errors.New("No such token and user pair found.")
+		}
 		// AccessToken exists, check expiration next.
 		// AccessToken expired, check JSON body for refresh token, ask for refreshToken. This occurs at URL: /users/:user_id/deviceinfo/:device_id/token, case renewTokens. "Access token expired. Refresh token needed"
 		if err == nil {

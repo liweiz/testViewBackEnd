@@ -31,13 +31,11 @@ type ReqRenewTokens struct {
 	Tokens     TokensInCommon `json:"tokens"`
 }
 
-// RequestId appears together with client UUID to locate the list to put RequestId into.
 type ReqUser struct {
-	RequestId  string       `json:"requestId"`
-	DeviceUUID string       `json:"deviceUUID"`
-	User       UserInCommon `json:"user"`
+	User UserInCommon `json:"user"`
 }
 
+// RequestId appears together with client UUID to locate the list to put RequestId into.
 type ReqDeviceInfoNew struct {
 	RequestId  string                `json:"requestId"`
 	DeviceUUID string                `json:"deviceUUID"`
