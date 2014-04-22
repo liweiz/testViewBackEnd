@@ -2,6 +2,7 @@ package testView
 
 import (
 	"errors"
+	"fmt"
 	"github.com/go-martini/martini"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
@@ -17,18 +18,18 @@ const (
 	ConflictCreateAnotherInDB
 )
 
-func HandleCardVersionConflict(action string, docFromReq interface{}, docFromDB interface{}) (decisionCode int) {
+func HandleCardVersionConflict(action string, reqBody interface{}, docFromDB interface{}) (decisionCode int) {
 	// Assume that the uniqueness check has been done before this. So every docFromReq is unique according to the db.
 	d := reflect.ValueOf(docFromDB)
 	if d.Kind() == reflect.Ptr {
 		d = d.Elem()
 	}
-	r := reflect.ValueOf(docFromReq)
+	r := reflect.ValueOf(reqBody)
 	if r.Kind() == reflect.Ptr {
 		r = r.Elem()
 	}
-	dv := d.FieldByName("versionNo").Int()
-	rv := r.FieldByName("versionNo").Int()
+	dv := d.FieldByName("VersionNo").Int()
+	rv := r.FieldByName("CardVersionNo").Int()
 	// Currently for card only
 	// docName := reflect.TypeOf(docFromDB).Name()
 	if dv > rv {
@@ -39,27 +40,33 @@ func HandleCardVersionConflict(action string, docFromReq interface{}, docFromDB 
 		// Creating is not operate on existing docs, so no need to compare versionNo, only need to check uniqueness.
 		if action == "update" {
 			decisionCode = ConflictCreateAnotherInDB
+			fmt.Println("conflict dicision code: ", "ConflictCreateAnotherInDB")
 		} else if action == "delete" {
 			// If card on server has been deleted, the delete action has no effect. The server will ask the client to delete the card on server as well. The delete request sent by client just happens to be the same decision made  by the server and the version comparison leads to overwriting the client.
-			// If the card on server is not deleted, the higher version f the card on server indicates the client needs to comply with the server's dicision.
+			// If the card on server is not deleted, the higher version f the card on server indicates the client needs to comply with the server's dicision. And user have the chance to decide if delete the updated card then.
 			// In both cases, we need to overwrite card on client.
 			decisionCode = ConflictOverwriteClient
+			fmt.Println("conflict dicision code: ", "ConflictOverwriteClient")
 		}
 	} else if dv == rv {
 		decisionCode = NoConflictOverwriteDB
+		fmt.Println("conflict dicision code: ", "NoConflictOverwriteDB")
 	} else if dv < rv {
-		// Impossible. If this does happens, overwrite the client anyway.
+		// Impossible. If this does happen, overwrite the client anyway.
 		decisionCode = ConflictOverwriteClient
+		fmt.Println("conflict dicision code: ", "ConflictOverwriteClient")
 	}
+
 	return
 }
 
 // If card is unique, return true
 func CheckCardUniqueness(db *mgo.Database, params martini.Params, cardValueInReq reflect.Value) (isUnique bool, duplicated []CardInCommon, err error) {
-	x := reflect.ValueOf(cardValueInReq)
+	x := cardValueInReq
 	if x.Kind() == reflect.Ptr {
 		x = x.Elem()
 	}
+	fmt.Println("CheckCardUniqueness: ", x.FieldByName("Target").String(), x.FieldByName("Translation").String(), x.FieldByName("Context").String(), x.FieldByName("Detail").String())
 	idToCheck := bson.ObjectIdHex(params["user_id"])
 	// Return the possible cards that duplicated for further process.
 	err = db.C("cards").Find(bson.M{
@@ -69,9 +76,15 @@ func CheckCardUniqueness(db *mgo.Database, params martini.Params, cardValueInReq
 		"target":      x.FieldByName("Target").String(),
 		"translation": x.FieldByName("Translation").String(),
 		"context":     x.FieldByName("Context").String(),
-		"detail":      x.FieldByName("Detail").String()}).All(&duplicated)
-	if err == mgo.ErrNotFound {
-		isUnique = true
+		"detail":      x.FieldByName("Detail").String()}).Select(GetSelector(SelectCardInCommon)).All(&duplicated)
+	fmt.Println("CheckCardUniqueness duplicated number: ", len(duplicated))
+	if err == nil {
+		if len(duplicated) == 0 {
+			isUnique = true
+			fmt.Println("CheckCardUniqueness: content is unique", "Yes")
+		} else {
+			err = errors.New("You have one card with same content already.")
+		}
 	}
 	return
 }

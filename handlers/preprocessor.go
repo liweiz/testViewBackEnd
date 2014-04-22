@@ -58,9 +58,13 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 			resStruct := &ResSignUpOrIn{}
 			err = GetStructFromReq(req, reqStruct)
 			if err == nil {
-				c := bson.M{
-					"email": reqStruct.Email}
-				PrepareVehicle(ctx, reqStruct, resStruct, c, "", "")
+				if len(reqStruct.Password) < 6 {
+					err = errors.New("incorrect password format.")
+				} else {
+					c := bson.M{
+						"email": reqStruct.Email}
+					PrepareVehicle(ctx, reqStruct, resStruct, c, "", "")
+				}
 			}
 		}
 	case SignIn:
@@ -108,7 +112,7 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 		}
 	case NewDeviceInfo:
 		if m == "POST" {
-			reqStruct := &ReqDeviceInfoNew{}
+			reqStruct := &ReqDeviceInfo{}
 			resStruct := &ResDeviceInfo{}
 			err = GetStructFromReq(req, reqStruct)
 			if err == nil {
@@ -162,8 +166,7 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 			}
 		}
 	case NewCard:
-		// Uniqueness is checked in MakeDecision
-		reqStruct := &ReqCardNew{}
+		reqStruct := &ReqCard{}
 		resStruct := &ResCards{}
 		err = GetStructFromReq(req, reqStruct)
 		if err == nil {
@@ -182,13 +185,13 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 			"_id":       idToCheck,
 			"belongTo":  belongTo,
 			"isDeleted": false}
-		if m == "POST" {
+		if m == "POST" || m == "DELETE" {
 			reqStruct := &ReqCard{}
 			err = GetStructFromReq(req, reqStruct)
 			if err == nil {
 				PrepareVehicle(ctx, reqStruct, resStruct, c, reqStruct.RequestId, reqStruct.DeviceUUID)
 			}
-		} else if m == "GET" || m == "DELETE" {
+		} else if m == "GET" {
 			PrepareVehicle(ctx, nil, resStruct, c, "", "")
 		}
 	/*

@@ -109,8 +109,7 @@ Different cases:
 */
 
 type DeviceInfoInCommonNew struct {
-	BelongTo   bson.ObjectId `bson:"belongTo" json:"belongTo"`
-	DeviceUUID string        `bson:"deviceUUID" json:"deviceUUID"`
+	DeviceUUID string `bson:"deviceUUID" json:"deviceUUID"`
 	// LanguagePair selection is done when user signs up. User will be asked to set the pair after a successful signup but before they can use the app. The initially selected pair is stored and used as default. The change operation will be provided in future releases. Not a problem currently.
 	// LanguagePair selection is a device-specific option. Each device can has its own preference
 	SourceLang string `bson:"sourceLang" json:"sourceLang"`
@@ -185,16 +184,12 @@ type RequestProcessed struct {
 }
 
 type CardInCommonNew struct {
-	Context      string        `bson:"context" json:"context"`
-	Detail       string        `bson:"detail" json:"detail"`
-	SourceLang   string        `bson:"sourceLang" json:"sourceLang"`
-	Target       string        `bson:"target" json:"target"`
-	TargetLang   string        `bson:"targetLang" json:"targetLang"`
-	Translation  string        `bson:"translation" json:"translation"`
-	VersionNo    int64         `bson:"versionNo" json:"versionNo"`
-	CollectedAt  int64         `bson:"collectedAt" json:"collectedAt"`
-	LastModified int64         `bson:"lastModified" json:"lastModified"`
-	BelongTo     bson.ObjectId `bson:"belongTo" json:"belongTo"`
+	Context     string `bson:"context" json:"context"`
+	Detail      string `bson:"detail" json:"detail"`
+	SourceLang  string `bson:"sourceLang" json:"sourceLang"`
+	Target      string `bson:"target" json:"target"`
+	TargetLang  string `bson:"targetLang" json:"targetLang"`
+	Translation string `bson:"translation" json:"translation"`
 }
 
 type CardInCommon struct {

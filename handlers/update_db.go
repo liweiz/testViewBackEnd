@@ -135,7 +135,7 @@ func PrepareUpdateNonDicDocDB(defaultDocType int, structFromReq interface{}) (do
 			"$set": bson.M{
 				"accessToken":         accessToken,
 				"refreshToken":        refreshToken,
-				"accessTokenExpireAt": time.Now().UnixNano() + (3.6e+12)/20,
+				"accessTokenExpireAt": time.Now().UnixNano() + tokenExpirationInNanoSec,
 				"lastModified":        time.Now().UnixNano()}}
 	case DeviceInfoUpdate:
 		docToSave = bson.M{

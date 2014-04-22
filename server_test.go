@@ -1,220 +1,158 @@
 package main
 
 import (
-	"bytes"
-	"fmt"
-	//"log"
-	"encoding/json"
-	//"github.com/go-martini/martini"
-	"labix.org/v2/mgo/bson"
-	"me/testView/handlers"
-	"net/http"
-	"net/http/httptest"
-	"os"
+	// "me/testView/handlers"
+	// "fmt"
+	// "net/http"
+	// "net/http/httptest"
 	"testing"
 )
 
-const (
-	TestEmail = "matt.z.lw@gmail.com"
-	// password for "matt.z.lw@gmail.com": "aA1~aA1~" or "aA1~aA1~!"
-	TestPassword                = "aA1~aA1~"
-	TestPasswordV               = "aA1~aA1~!"
-	TestUserId                  = "534b2149bd7e5551fc000001"
-	TestAccessToken             = "4db0d37878b54392acd054f2ac719a7e"
-	TestRefreshToken            = "cf6c657b94f848f5bfa85fd9c7536912"
-	TestDeviceUUID              = "zzzzzzzz"
-	TestUuidId                  = "534b24b0bd7e555128000001"
-	TestRequestId               = "z"
-	TestPasswordResettingURLEnd = ""
-	TestActivationURLEnd        = "8a643f595f0a48af921df23e267d11bc"
-)
+func TestSteps(t *testing.T) {
+	m := My()
+	// Start point
+	p := &publicDataSet{}
 
-// func TestSignUp(t *testing.T) {
-// 	m := My()
-// 	reqBodyStruct := testView.ReqSignUpOrIn{
-// 		TestEmail,
-// 		TestPassword,
-// 		TestDeviceUUID}
-// 	reqBody, _ := json.MarshalIndent(reqBodyStruct, "", "	")
-// 	os.Stdout.Write(reqBody)
-// 	body := bytes.NewReader(reqBody)
-// 	url := "/users"
-// 	m.Post(url, testView.RequestPreprocessor(testView.SignUp), testView.ProcessedResponseGenerator(testView.SignUp, false))
-// 	req, _ := http.NewRequest("POST", url, body)
-// 	w := httptest.NewRecorder()
-// 	m.ServeHTTP(w, req)
-// 	fmt.Println("code:", w.Code)
-// 	os.Stdout.Write(w.Body.Bytes())
-// }
+	d := GetTestDataSet()
+	// Setup user1
+	u1 := &userX{}
+	u1d1 := deviceX{}
+	u1d2 := deviceX{}
+	u1.Devices = append(u1.Devices, u1d1, u1d2)
+	u1.UserNo = 1
+	u1.Email = d["email"][0]
+	u1.Password = d["password"][0]
+	u1.Devices[0].DeviceUuid = d["uuid"][0]
+	u1.Devices[0].DeviceNo = 1
+	u1.Devices[1].DeviceUuid = d["uuid"][1]
+	u1.Devices[1].DeviceNo = 2
+	// Use the same set of reqId to test if same reqId from different device could go wrong.
+	u1.Devices[0].ReqId = d["reqId1"]
+	u1.Devices[1].ReqId = d["reqId1"]
+	// Setup user2
+	u2 := &userX{}
+	u2d1 := deviceX{}
+	u2.Devices = append(u2.Devices, u2d1)
+	u2.UserNo = 2
+	u2.Email = d["email"][1]
+	u2.Password = d["password"][1]
+	u2.Devices[0].DeviceUuid = d["uuid"][0]
+	u2.Devices[0].DeviceNo = 1
+	u2.Devices[0].ReqId = d["reqId1"]
 
-// func TestSignIn(t *testing.T) {
-// 	m := My()
-// 	reqBodyStruct := testView.ReqSignUpOrIn{
-// 		"",
-// 		"",
-// 		TestDeviceUUID}
-// 	reqBody, _ := json.MarshalIndent(reqBodyStruct, "", "	")
-// 	os.Stdout.Write(reqBody)
-// 	body := bytes.NewReader(reqBody)
-// 	url := "/users/signin"
-// 	m.Post(url, testView.GateKeeper(), testView.RequestPreprocessor(testView.SignIn), testView.ProcessedResponseGenerator(testView.SignIn, false))
-// 	req, _ := http.NewRequest("POST", url, body)
-// 	req.SetBasicAuth(TestEmail, TestPasswordV)
-// 	w := httptest.NewRecorder()
-// 	m.ServeHTTP(w, req)
-// 	fmt.Println("code:", w.Code)
-// 	os.Stdout.Write(w.Body.Bytes())
-// }
+	f := GetFuncForTestStep(m, p, u1, u2)
+	// setup start point
+	p.Email = u1.Email
+	p.Password = u1.Password
+	p.Uuid = u1.Devices[0].DeviceUuid
+	p.ReqId = u1.Devices[0].ReqId[0]
+	p.SortOption = "1"
+	fTestFlow := []funcForTestStep{
+		// user1 signs up, signs in, renew tokens
+		f["SignUp"],                        // user1 signs up on device1
+		f["assign tokens to user1"],        // assign tokens to user1device1
+		f["SignUp"],                        // try sign up with the dulpicated email
+		f["SignIn"],                        // user1 signs in on device1
+		f["assign tokens to user1"],        // assign tokens to user1device1
+		f["assign device2 uuid to public"], // change uuid to device2's
+		f["SignIn"],                        // user1 signs in on device2
+		f["assign tokens to user1"],        // assign tokens to user1device2
+		f["assign device1 uuid to public"], // change uuid to device1's
+		f["assign user1 tokens to public"], // change tokens to user1device1's
+		f["RenewTokens"],                   // renew tokens for user1device1
+		f["assign tokens to user1"],        // assign tokens to user1device1
 
-// func TestRenewTokens(t *testing.T) {
-// 	m := My()
-// 	reqBodyStruct := testView.ReqRenewTokens{
-// 		DeviceUUID: TestDeviceUUID,
-// 		Tokens:     testView.TokensInCommon{TestAccessToken, TestRefreshToken}}
-// 	reqBody, _ := json.MarshalIndent(reqBodyStruct, "", "	")
-// 	os.Stdout.Write(reqBody)
-// 	body := bytes.NewReader(reqBody)
-// 	url := "/users/" + TestUserId + "/tokens"
-// 	// Use this to simulate use token with wrong userId.
-// 	// url := "/users/53498c7abd7e550ce4000002/tokens"
-// 	m.Post("/users/:user_id/tokens", testView.GateKeeperExchange(), testView.RequestPreprocessor(testView.RenewTokens), testView.ProcessedResponseGenerator(testView.RenewTokens, false))
-// 	req, _ := http.NewRequest("POST", url, body)
-// 	req.Header.Set("Authorization", "Bearer "+TestAccessToken)
-// 	w := httptest.NewRecorder()
-// 	m.ServeHTTP(w, req)
-// 	fmt.Println("code:", w.Code)
-// 	os.Stdout.Write(w.Body.Bytes())
-// }
+		// activate user1
+		f["ActivationEmail"],                            // send activation email for user1
+		f["assign user1 activation url code to public"], // get and assign user1 activation url code to public
+		f["ClickActivationLink"],                        // activate user1
 
-// func TestActivationEmail(t *testing.T) {
-// 	m := My()
-// 	url := "/users/" + TestUserId + "/activation"
-// 	m.Get("/users/:user_id/activation", testView.GateKeeper(), testView.EmailSender(testView.EmailForActivation))
-// 	req, _ := http.NewRequest("GET", url, nil)
-// 	req.Header.Set("Authorization", "Bearer "+TestAccessToken)
-// 	w := httptest.NewRecorder()
-// 	m.ServeHTTP(w, req)
-// 	fmt.Println("code:", w.Code)
-// 	os.Stdout.Write(w.Body.Bytes())
-// }
+		// change user1's password
+		// f["PasswordResettingEmailByToken"],                 // get user1 pwd resetting email by token
+		// f["assign user1 pwd resetting url code to public"], // get and assign user1 pwd resetting url code to public
+		// f["ChangePassword"],                                // change user1 password through url
+		// f["PasswordResettingEmailByEmail"],                 // get user1 pwd resetting email by email
+		// f["assign user1 pwd resetting url code to public"], // get and assign user1 pwd resetting url code to public
+		// f["ChangePassword"],                                // change user1 password through url
 
-// func TestClickActivationLink(t *testing.T) {
-// 	m := My()
-// 	url := "/users/" + TestUserId + "/activation/" + TestActivationURLEnd
-// 	m.Get("/users/:user_id/activation/:activation_code", testView.WebPageServer(testView.PageForActivation))
-// 	req, _ := http.NewRequest("GET", url, nil)
-// 	w := httptest.NewRecorder()
-// 	m.ServeHTTP(w, req)
-// 	fmt.Println("code:", w.Code)
-// 	os.Stdout.Write(w.Body.Bytes())
-// }
+		// create and update new deviceInfo, pls see info architecture.xlsx sheet10
+		// starting point
+		f["NewDeviceInfo"], // create a device info for device1
+		f["assign device1 2nd reqId to public"],
+		f["assign sort option '2' to public"],
+		f["UpdateDeviceInfo"], // update a device info for device1
 
-// This is for reset password when logged in. So gateKeeper needed.
-// func TestPasswordResettingEmailByToken(t *testing.T) {
-// 	m := My()
-// 	url := "/users/" + TestUserId + "/password"
-// 	m.Get("/users/:user_id/password", testView.GateKeeper(), testView.EmailSender(testView.EmailForPasswordResetting))
-// 	req, _ := http.NewRequest("GET", url, nil)
-// 	req.Header.Set("Authorization", "Bearer "+TestAccessToken)
-// 	w := httptest.NewRecorder()
-// 	m.ServeHTTP(w, req)
-// 	fmt.Println("code:", w.Code)
-// 	os.Stdout.Write(w.Body.Bytes())
-// }
+		/////////////////////// single card CRUD BEGINS /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// first card, this no is from Excel file column E
+		// 2
+		// f["assign device1 3rd reqId to public"],
+		// f["NewCardV1"], // this is the original card since it's the first one created
+		// // 1
+		// f["assign card id original ver no equal to db's to public"],
+		// f["assign device1 4th reqId to public"],
+		// f["NewCardV1"], // uniqueness test, but it has to be with a different request id:) the request id is not supposed to be added to db since it can not pass the uniqueness check, which generates an err.
+		// // 7
+		// f["assign device1 5th reqId to public"],
+		// f["UpdateCardV1"], // update original card with same content, should not be able to pass uniqueness check
+		// // 8
+		// f["assign device1 6th reqId to public"],
+		// f["UpdateCardV2"], // update original card with different content and same version no
+		// // 10
+		// f["assign device1 7th reqId to public"],
+		// f["assign card id original ver no equal to db's to public"],
+		// f["assign card id original ver no less than db's to public"],
+		// f["UpdateCardV1"], // update original card with different content and version no less than db's, should be ConflictCreateAnotherInDB
+		// // 9
+		// f["assign device1 8th reqId to public"],
+		// f["assign card id original ver no equal to db's to public"],
+		// f["assign card id original ver no greater than db's to public"],
+		// f["UpdateCardV3"], // should be successful with NoConflictOverwriteDB
+		// // 12
+		// f["assign device1 9th reqId to public"],
+		// f["assign card id original ver no equal to db's to public"],
+		// f["DeleteCard"], // should be successful with overwriting client to make sure no inconsistence
+		// // 11
+		// f["assign device1 10th reqId to public"],
+		// f["assign card id original ver no equal to db's to public"],
+		// f["DeleteCard"], // should be successful with NoConflictOverwriteDB
+		// // 3
+		// f["assign device1 11th reqId to public"],
+		// f["UpdateCardV1"], // should not pass uniqueness check
+		// // 4
+		// f["assign device1 12th reqId to public"],
+		// f["UpdateCardV2"], // should be ConflictCreateAnotherInDB
+		// // 6
+		// f["assign device1 13th reqId to public"],
+		// f["assign card id original ver no equal to db's to public"],
+		// f["assign card id original ver no less than db's to public"],
+		// f["UpdateCardV3"], // should be ConflictCreateAnotherInDB
+		// // remove all cards to have fresh restart, update once to make the version no equal ot 2
+		// f["remove all cards in db"],
+		// f["assign device1 14th reqId to public"],
+		// f["NewCardV1"],
+		// f["assign device1 15th reqId to public"],
+		// f["assign card id original ver no equal to db's to public"],
+		// f["UpdateCardV2"],
+		// // 14
+		// f["assign device1 16th reqId to public"],
+		// f["assign card id original ver no equal to db's to public"],
+		// f["assign card id original ver no less than db's to public"],
+		// f["DeleteCard"], // keep the card and overwrite client's, this provides another chance for user to make decision based on updated content
+		// // 13
+		// f["assign device1 17th reqId to public"],
+		// f["assign card id original ver no equal to db's to public"],
+		// f["assign card id original ver no greater than db's to public"],
+		// f["DeleteCard"], // overwrite client to make sure no inconsistence
+		// // 5
+		// f["assign device1 18th reqId to public"],
+		// f["assign card id original ver no equal to db's to public"],
+		// f["DeleteCard"], // actually delete the card to create the situation for 5
+		// f["assign device1 19th reqId to public"],
+		// f["assign card id original ver no equal to db's to public"],
+		// f["assign card id original ver no greater than db's to public"],
+		// f["UpdateCardV1"],
+		/////////////////////// single card CRUD ENDS /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	}
+	RunOperationFlow(fTestFlow, m, p)
 
-// This is for forgot-password. No gateKeeper needed, but user has to provide the email to verify if the account exsits. If yes, send the email and let user know. Otherwise, tell the user the account does not exist.
-// func TestPasswordResettingEmailByEmail(t *testing.T) {
-// 	m := My()
-// 	url := "/users/forgotpassword"
-// 	reqBodyStruct := testView.ReqForgotPassword{TestEmail}
-// 	reqBody, _ := json.MarshalIndent(reqBodyStruct, "", "	")
-// 	body := bytes.NewReader(reqBody)
-// 	m.Post("/users/forgotpassword", testView.RequestPreprocessor(testView.ForgotPassword), testView.ProcessedResponseGenerator(testView.ForgotPassword, false))
-// 	m.Get("/assets/css/bootstrap.min.css", testView.AssetsServer(testView.BootstrapCssMin))
-// 	m.Get("/assets/js/bootstrap.min.js", testView.AssetsServer(testView.BootstrapJsMin))
-// 	m.Get("/assets/css/account_activation.css", testView.AssetsServer(testView.CssPageForActivation))
-// 	m.Get("/assets/js/account_activation.js", testView.AssetsServer(testView.JsPageForActivation))
-// 	m.Get("/assets/css/password_resetting.css", testView.AssetsServer(testView.CssPageForPasswordResetting))
-// 	m.Get("/assets/js/password_resetting.js", testView.AssetsServer(testView.JsPageForPasswordResetting))
-// 	req, _ := http.NewRequest("POST", url, body)
-// 	w := httptest.NewRecorder()
-// 	m.ServeHTTP(w, req)
-// 	fmt.Println("code:", w.Code)
-// 	os.Stdout.Write(w.Body.Bytes())
-// }
-
-// Reset password from the uniqueUrl
-// func TestChangePassword(t *testing.T) {
-// 	m := My()
-// 	reqBodyStruct := testView.ReqResetPassword{
-// 		TestPasswordV}
-// 	reqBody, _ := json.MarshalIndent(reqBodyStruct, "", "	")
-// 	os.Stdout.Write(reqBody)
-// 	body := bytes.NewReader(reqBody)
-// 	url := "/users/" + TestUserId + "/password/" + TestPasswordResettingURLEnd
-// 	m.Post("/users/:user_id/password/:password_resetting_code", testView.UrlCodeChecker(), testView.RequestPreprocessor(testView.PasswordResetting), testView.ProcessedResponseGenerator(testView.PasswordResetting, false))
-// 	req, _ := http.NewRequest("POST", url, body)
-// 	w := httptest.NewRecorder()
-// 	m.ServeHTTP(w, req)
-// 	fmt.Println("code:", w.Code)
-// 	os.Stdout.Write(w.Body.Bytes())
-// }
-
-// func TestNewDeviceInfo(t *testing.T) {
-// 	m := My()
-// 	reqBodyStruct := testView.ReqDeviceInfoNew{
-// 		RequestId:  TestRequestId,
-// 		DeviceUUID: TestDeviceUUID,
-// 		DeviceInfo: testView.DeviceInfoInCommonNew{
-// 			BelongTo:   bson.ObjectIdHex("533df9eebd7e554fa0000001"),
-// 			DeviceUUID: TestDeviceUUID,
-// 			SourceLang: "English",
-// 			TargetLang: "简体中文",
-// 			SortOption: "timeModifiedDescending",
-// 			IsLoggedIn: true,
-// 			RememberMe: true}}
-// 	fmt.Println(reqBodyStruct)
-// 	reqBody, _ := json.MarshalIndent(reqBodyStruct, "", "	")
-// 	os.Stdout.Write(reqBody)
-// 	body := bytes.NewReader(reqBody)
-// 	url := "/users/" + TestUserId + "/deviceinfos"
-// 	// Use this to simulate use token with wrong userId.
-// 	// url := "/users/53498c7abd7e550ce4000002/deviceinfo"
-// 	m.Post("/users/:user_id/deviceinfos", testView.GateKeeper(), testView.NonActivationBlocker(), testView.RequestPreprocessor(testView.NewDeviceInfo), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.NewDeviceInfo, true))
-// 	req, _ := http.NewRequest("POST", url, body)
-// 	req.Header.Set("Authorization", "Bearer "+TestAccessToken)
-// 	w := httptest.NewRecorder()
-// 	m.ServeHTTP(w, req)
-// 	fmt.Println("code:", w.Code)
-// 	os.Stdout.Write(w.Body.Bytes())
-// }
-
-// func TestUpdateDeviceInfo(t *testing.T) {
-// 	m := My()
-// 	reqBodyStruct := testView.ReqDeviceInfoNew{
-// 		RequestId:  TestRequestId,
-// 		DeviceUUID: TestDeviceUUID,
-// 		DeviceInfo: testView.DeviceInfoInCommonNew{
-// 			BelongTo:   bson.ObjectIdHex(TestUserId),
-// 			DeviceUUID: TestDeviceUUID,
-// 			SourceLang: "简体中文",
-// 			TargetLang: "English",
-// 			SortOption: "timeModifiedAscending",
-// 			IsLoggedIn: true,
-// 			RememberMe: true}}
-// 	fmt.Println(reqBodyStruct)
-// 	reqBody, _ := json.MarshalIndent(reqBodyStruct, "", "	")
-// 	os.Stdout.Write(reqBody)
-// 	body := bytes.NewReader(reqBody)
-// 	// url := "/users/" + TestUserId + "/deviceinfos/" + "TestUuidId"
-// 	url := "/users/" + TestUserId + "/deviceinfos/" + TestUuidId
-// 	// Use this to simulate use token with wrong userId.
-// 	// url := "/users/53498c7abd7e550ce4000002/deviceinfo"
-// 	m.Post("/users/:user_id/deviceinfos/:device_id", testView.GateKeeper(), testView.RequestPreprocessor(testView.OneDeviceInfo), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.OneDeviceInfo, true))
-// 	req, _ := http.NewRequest("POST", url, body)
-// 	req.Header.Set("Authorization", "Bearer "+TestAccessToken)
-// 	w := httptest.NewRecorder()
-// 	m.ServeHTTP(w, req)
-// 	fmt.Println("code:", w.Code)
-// 	os.Stdout.Write(w.Body.Bytes())
-// }
+}

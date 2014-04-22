@@ -32,6 +32,12 @@ bson.M{
 */
 
 const (
+	// Each accessToken is valid for 3 hours, (3.6e+12)*3
+	// For test purpose, reduce this to 3 mins, (3.6e+12)/20
+	tokenExpirationInNanoSec int64 = (3.6e+12) * 3
+)
+
+const (
 	CardDicNew int = iota
 	CardNew
 	UserNew
@@ -47,7 +53,7 @@ const (
 func InsertNonDicDB(defaultDocType int, structFromReq interface{}, db *mgo.Database, userId bson.ObjectId) (newId bson.ObjectId, err error) {
 	var d interface{}
 	d, newId, err = PrepareNewNonDicDocDB(defaultDocType, structFromReq, userId)
-	fmt.Println("bson.M to insert 2: ", d)
+	// fmt.Println("bson.M to insert 2: ", d)
 	if err == nil {
 		var name string
 		switch defaultDocType {
@@ -121,14 +127,12 @@ func PrepareNewNonDicDocDB(defaultDocType int, structFromReq interface{}, userId
 		accessToken, refreshToken := GenerateTokens(true)
 		docToSave = bson.M{
 			// TokensInCommon
-			"accessToken":  accessToken,
-			"refreshToken": refreshToken,
-			"_id":          newId,
-			"belongTo":     userId,
-			"deviceUUID":   d.FieldByName("DeviceUUID").String(),
-			// Each accessToken is valid for 3 hours, (3.6e+12)*3
-			// For test purpose, reduce this to 3 mins, (3.6e+12)/20
-			"accessTokenExpireAt": time.Now().UnixNano() + (3.6e+12)/20,
+			"accessToken":         accessToken,
+			"refreshToken":        refreshToken,
+			"_id":                 newId,
+			"belongTo":            userId,
+			"deviceUUID":          d.FieldByName("DeviceUUID").String(),
+			"accessTokenExpireAt": time.Now().UnixNano() + tokenExpirationInNanoSec,
 			"lastModified":        time.Now().UnixNano()}
 	// DeviceInfo is created after user is created successfully.
 	case DeviceInfoNew:

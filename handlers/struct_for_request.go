@@ -36,35 +36,20 @@ type ReqUser struct {
 }
 
 // RequestId appears together with client UUID to locate the list to put RequestId into.
-type ReqDeviceInfoNew struct {
+type ReqDeviceInfo struct {
 	RequestId  string                `json:"requestId"`
 	DeviceUUID string                `json:"deviceUUID"`
 	DeviceInfo DeviceInfoInCommonNew `json:"deviceInfo"`
 }
 
-type ReqDeviceInfo struct {
-	RequestId  string             `json:"requestId"`
-	DeviceUUID string             `json:"deviceUUID"`
-	DeviceInfo DeviceInfoInCommon `json:"deviceInfo"`
-}
-
-// Request for card(s) do not provide user id since it can be got from param in URL
-type ReqCardNew struct {
-	RequestId  string          `json:"requestId"`
-	DeviceUUID string          `json:"deviceUUID"`
-	Card       CardInCommonNew `json:"card"`
-}
-
+// Request for card(s) does not provide user id since it can be got from param in URL.
+// Request for updating card does not include card's id since it can be got from param in URL.
+// So the only difference between new and update is the request URL.
 type ReqCard struct {
-	RequestId  string       `json:"requestId"`
-	DeviceUUID string       `json:"deviceUUID"`
-	Card       CardInCommon `json:"card"`
-}
-
-type ReqCards struct {
-	RequestId  string         `json:"requestId"`
-	DeviceUUID string         `json:"deviceUUID"`
-	Cards      []CardInCommon `json:"cards"`
+	RequestId     string          `json:"requestId"`
+	DeviceUUID    string          `json:"deviceUUID"`
+	Card          CardInCommonNew `json:"card"`
+	CardVersionNo int64           `json:"cardVersionNo"`
 }
 
 type CardsVerList struct {

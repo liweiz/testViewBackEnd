@@ -136,7 +136,7 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 			// Check if already in use
 			err = db.C("users").Find(criteria).One(&aUser)
 			if err == mgo.ErrNotFound {
-				fmt.Println("existing uer not found")
+				fmt.Println("existing user not found")
 				// Reset err = nil
 				err = nil
 				// Create a new user
@@ -278,53 +278,55 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 		case NewCard:
 			var r []CardInCommon
 			r, _, err = InsertNewCard(db, structFromReq, params)
-			if len(r) > 0 {
-				// Card with same content found, return this card to client.
+			fmt.Println("number of new card in response: ", len(r))
+			if err == nil {
+				// Card inserted as new card, return this card to client.
 				err = SetResBodyPart(v.FieldByName("Cards"), "Cards", reflect.ValueOf(r))
 			}
 		case OneCard:
 			var t CardInCommon
 			var r []CardInCommon
-			err = db.C("cards").Find(criteria).One(&t)
+			err = db.C("cards").Find(criteria).Select(GetSelector(SelectCardInCommon)).One(&t)
 			if err == mgo.ErrNotFound {
-				// No card with this exists. It indicates the card sent from client has been deleted already. Assign a new id, if it's an update operation.
-				// Here treat it as a new card and overwrite it on client.
+				// No card with this exists. It indicates the card sent from client has been deleted already. Assign a new id and treat it as a new card operation, if it's an update operation. Overwrite it on client.
 				r, _, err = InsertNewCard(db, structFromReq, params)
-				if len(r) > 0 {
+				if err == nil {
 					err = SetResBodyPart(v.FieldByName("Cards"), "Cards", reflect.ValueOf(r))
 				}
 			} else if err == nil {
-				// Update the card according to the conflict-resolving rule.
-				decisionCode := HandleCardVersionConflict("update", x.FieldByName("Card"), t)
-				if decisionCode == ConflictCreateAnotherInDB {
-					// Check unique first and every step like insert a new card.
-					// Need to overwrite the record on client with this id as well.
-					var r1 []CardInCommon
-					r, r1, err = InsertNewCard(db, structFromReq, params)
-					if len(r) > 0 {
+				var isUnique bool
+				isUnique, _, err = CheckCardUniqueness(db, params, x.FieldByName("Card"))
+				if isUnique {
+					// Update the card according to the conflict-resolving rule.
+					decisionCode := HandleCardVersionConflict("update", structFromReq, t)
+					if decisionCode == ConflictCreateAnotherInDB {
+						// Check unique first and every step like insert a new card.
+						// Need to overwrite the record on client with this id as well.
+						var newId bson.ObjectId
+						newId, err = InsertNonDicDB(CardNew, structFromReq, db, bson.ObjectIdHex(params["user_id"]))
+						if err == nil {
+							err = db.C("cards").Find(bson.M{
+								"_id": newId}).Select(GetSelector(SelectCardInCommon)).All(&r)
+							if err == nil {
+								r = append(r, t)
+								err = SetResBodyPart(v.FieldByName("Cards"), "Cards", reflect.ValueOf(r))
+							}
+						}
+					} else if decisionCode == NoConflictOverwriteDB {
+						// No need to check uniqueness here. If there is duplicate card in db, just let the user do what he wants.
+						var selector bson.M
+						selector, err = UpdateNonDicDB(CardUpdate, structFromReq, db, params, bson.ObjectIdHex(params["user_id"]))
+						if err == nil {
+							err = db.C("cards").Find(selector).Select(GetSelector(SelectCardInCommon)).All(&r)
+							if err == nil {
+								err = SetResBodyPart(v.FieldByName("Cards"), "Cards", reflect.ValueOf(r))
+							}
+						}
+					} else if decisionCode == ConflictOverwriteClient {
+						r = make([]CardInCommon, 0)
 						r = append(r, t)
 						err = SetResBodyPart(v.FieldByName("Cards"), "Cards", reflect.ValueOf(r))
-					} else if len(r1) > 0 {
-						// Updated content is duplicated with other existing records in db. Deliver those to client.
-						r1 = append(r1, t)
-						// Clear potential err in previoue steps.
-						err = nil
-						err = SetResBodyPart(v.FieldByName("Cards"), "Cards", reflect.ValueOf(r1))
 					}
-				} else if decisionCode == NoConflictOverwriteDB {
-					// No need to check uniqueness here. If there is duplicate card in db, just let the user do what he wants.
-					var selector bson.M
-					selector, err = UpdateNonDicDB(CardUpdate, structFromReq, db, params, bson.ObjectIdHex(params["user_id"]))
-					if err == nil {
-						err = db.C("cards").Find(selector).Select(GetSelector(SelectCardInCommon)).All(&r)
-						if err == nil {
-							err = SetResBodyPart(v.FieldByName("Cards"), "Cards", reflect.ValueOf(r))
-						}
-					}
-				} else if decisionCode == ConflictOverwriteClient {
-					r = make([]CardInCommon, 0)
-					r = append(r, t)
-					err = SetResBodyPart(v.FieldByName("Cards"), "Cards", reflect.ValueOf(r))
 				}
 			}
 		//case dict:
@@ -345,10 +347,12 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 			err = db.C("cards").Find(criteria).One(&t)
 			if err == mgo.ErrNotFound {
 				// Return ok since no such card exists among non-deleted ones.
+				err = nil
 			} else if err == nil {
-				decisionCode := HandleCardVersionConflict("delete", x.FieldByName("Card"), t)
+				decisionCode := HandleCardVersionConflict("delete", structFromReq, t)
 				if decisionCode == NoConflictOverwriteDB {
-					err = db.C("cards").Remove(criteria)
+					err = db.C("cards").Update(criteria, bson.M{
+						"$set": bson.M{"isDeleted": true}})
 				} else if decisionCode == ConflictOverwriteClient {
 					r = make([]CardInCommon, 0)
 					r = append(r, t)
