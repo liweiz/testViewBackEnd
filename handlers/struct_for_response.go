@@ -139,8 +139,8 @@ Response:
 */
 
 type CardToDeleteInRes struct {
-	ID        bson.ObjectId `json:"id"`
-	VersionNo int64         `json:"versionNo"`
+	ID bson.ObjectId `json:"id"`
+	// VersionNo int64         `json:"versionNo"`
 }
 
 type ResSignUpOrIn struct {

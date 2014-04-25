@@ -23,7 +23,7 @@ func GetTestDataSet() map[string][]string {
 		"email":    []string{"matt.z.lw@gmail.com", "remolet.z@gmail.com", "aUser"},
 		"password": []string{"aA1~aA1~", "aA1~aA1~!", "xX~xX~"},
 		"uuid":     []string{"aaa", "bbb", "ccc"},
-		"reqId1":   []string{"a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "a10", "a11", "a12", "a13", "a14", "a15", "a16", "a17", "a18", "a19"},
+		"reqId1":   []string{"a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "a10", "a11", "a12", "a13", "a14", "a15", "a16", "a17", "a18", "a19", "a20", "a21", "a22", "a23", "a24", "a25", "a26", "a27", "a28", "a29", "a30", "a31", "a32", "a33", "a34", "a35", "a36", "a37", "a38", "a39"},
 		"reqId2":   []string{"b1", "b2", "b3", "b4", "b5", "b6"},
 	}
 }
@@ -108,30 +108,3 @@ func RunOperationFlow(OperationFlow []funcForTestStep, m *MyMartini, p *publicDa
 }
 
 // os.Stdout.Write(reqBody)
-
-/////////////////////////CARD TEST///////////////////////////////////////////////////
-
-func GetSampleCards() []testView.CardInCommonNew {
-	CardV1 := testView.CardInCommonNew{
-		Context:     "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
-		Target:      "empathy",
-		Translation: "感同身受",
-		Detail:      "直译为“移情作用”，在中文中不易理解。",
-		SourceLang:  "English",
-		TargetLang:  "Chinese"}
-	CardV2 := testView.CardInCommonNew{
-		Context:     "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
-		Target:      "empathy",
-		Translation: "感同身受",
-		Detail:      "直译为“移情作用”。wiki中有详解，却不易理解。",
-		SourceLang:  "English",
-		TargetLang:  "Chinese"}
-	CardV3 := testView.CardInCommonNew{
-		Context:     "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
-		Target:      "empathy",
-		Translation: "感同身受",
-		Detail:      "直译为“移情作用”。",
-		SourceLang:  "English",
-		TargetLang:  "Chinese"}
-	return []testView.CardInCommonNew{CardV1, CardV2, CardV3}
-}

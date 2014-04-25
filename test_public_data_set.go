@@ -9,6 +9,9 @@ import (
 	"labix.org/v2/mgo/bson"
 	"me/testView/handlers"
 	"net/http"
+	// "net/http/httputil"
+	"os"
+	"time"
 )
 
 type publicDataSet struct {
@@ -27,6 +30,14 @@ type publicDataSet struct {
 	ReqId                    string
 	SortOption               string
 	Detail                   string
+	SyncTestCardId1          string
+	SyncTestCardId2          string
+	SyncTestCardId3          string
+	SyncTestCardId4          string
+	SyncTestCardId5          string
+	SyncTestCardId6          string
+	SyncTestCardId7          string
+	SyncTestCardId8          string
 }
 
 ///////////TEST FUNC/////////////
@@ -46,6 +57,7 @@ func (p *publicDataSet) TestSignIn(m *MyMartini, reqBodyStruct *testView.ReqSign
 	m.Post(url, testView.GateKeeper(), testView.RequestPreprocessor(testView.SignIn), testView.ProcessedResponseGenerator(testView.SignIn, false))
 	req, _ = http.NewRequest("POST", url, body)
 	req.SetBasicAuth(p.Email, p.Password)
+	req.Header.Add("X-REMOLET-DEVICE-ID", p.Uuid)
 	return
 }
 
@@ -56,6 +68,7 @@ func (p *publicDataSet) TestRenewTokens(m *MyMartini, reqBodyStruct *testView.Re
 	m.Post("/users/:user_id/tokens", testView.GateKeeperExchange(), testView.RequestPreprocessor(testView.RenewTokens), testView.ProcessedResponseGenerator(testView.RenewTokens, false))
 	req, _ = http.NewRequest("POST", url, body)
 	req.Header.Set("Authorization", "Bearer "+p.AccessToken)
+	req.Header.Add("X-REMOLET-DEVICE-ID", p.Uuid)
 	return
 }
 
@@ -64,6 +77,7 @@ func (p *publicDataSet) TestActivationEmail(m *MyMartini) (req *http.Request) {
 	m.Get("/users/:user_id/activation", testView.GateKeeper(), testView.EmailSender(testView.EmailForActivation))
 	req, _ = http.NewRequest("GET", url, nil)
 	req.Header.Set("Authorization", "Bearer "+p.AccessToken)
+	req.Header.Add("X-REMOLET-DEVICE-ID", p.Uuid)
 	return
 }
 
@@ -80,6 +94,7 @@ func (p *publicDataSet) TestPasswordResettingEmailByToken(m *MyMartini) (req *ht
 	m.Get("/users/:user_id/password", testView.GateKeeper(), testView.EmailSender(testView.EmailForPasswordResetting))
 	req, _ = http.NewRequest("GET", url, nil)
 	req.Header.Set("Authorization", "Bearer "+p.AccessToken)
+	req.Header.Add("X-REMOLET-DEVICE-ID", p.Uuid)
 	return
 }
 
@@ -118,6 +133,7 @@ func (p *publicDataSet) TestNewDeviceInfo(m *MyMartini, reqBodyStruct *testView.
 	m.Post("/users/:user_id/deviceinfos", testView.GateKeeper(), testView.NonActivationBlocker(), testView.RequestPreprocessor(testView.NewDeviceInfo), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.NewDeviceInfo, true))
 	req, _ = http.NewRequest("POST", url, body)
 	req.Header.Set("Authorization", "Bearer "+p.AccessToken)
+	req.Header.Add("X-REMOLET-DEVICE-ID", p.Uuid)
 	return
 }
 
@@ -128,6 +144,7 @@ func (p *publicDataSet) TestUpdateDeviceInfo(m *MyMartini, reqBodyStruct *testVi
 	m.Post("/users/:user_id/deviceinfos/:device_id", testView.GateKeeper(), testView.RequestPreprocessor(testView.OneDeviceInfo), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.OneDeviceInfo, true))
 	req, _ = http.NewRequest("POST", url, body)
 	req.Header.Set("Authorization", "Bearer "+p.AccessToken)
+	req.Header.Add("X-REMOLET-DEVICE-ID", p.Uuid)
 	return
 }
 
@@ -138,6 +155,7 @@ func (p *publicDataSet) TestNewCard(m *MyMartini, reqBodyStruct *testView.ReqCar
 	m.Post("/users/:user_id/cards", testView.GateKeeper(), testView.NonActivationBlocker(), testView.RequestPreprocessor(testView.NewCard), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.NewCard, true))
 	req, _ = http.NewRequest("POST", url, body)
 	req.Header.Set("Authorization", "Bearer "+p.AccessToken)
+	req.Header.Add("X-REMOLET-DEVICE-ID", p.Uuid)
 	return
 }
 
@@ -148,6 +166,7 @@ func (p *publicDataSet) TestUpdateCard(m *MyMartini, reqBodyStruct *testView.Req
 	m.Post("/users/:user_id/cards/:card_id", testView.GateKeeper(), testView.NonActivationBlocker(), testView.RequestPreprocessor(testView.OneCard), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.OneCard, true))
 	req, _ = http.NewRequest("POST", url, body)
 	req.Header.Set("Authorization", "Bearer "+p.AccessToken)
+	req.Header.Add("X-REMOLET-DEVICE-ID", p.Uuid)
 	return
 }
 
@@ -158,6 +177,19 @@ func (p *publicDataSet) TestDeleteCard(m *MyMartini, reqBodyStruct *testView.Req
 	m.Delete("/users/:user_id/cards/:card_id", testView.GateKeeper(), testView.NonActivationBlocker(), testView.RequestPreprocessor(testView.OneCard), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.OneCard, true))
 	req, _ = http.NewRequest("DELETE", url, body)
 	req.Header.Set("Authorization", "Bearer "+p.AccessToken)
+	req.Header.Add("X-REMOLET-DEVICE-ID", p.Uuid)
+	return
+}
+
+func (p *publicDataSet) TestSync(m *MyMartini, reqBodyStruct *testView.ReqSync) (req *http.Request) {
+	reqBody, _ := json.MarshalIndent(reqBodyStruct, "", "	")
+	body := bytes.NewReader(reqBody)
+	url := "/users/" + p.UserId + "/sync"
+	m.Post("/users/:user_id/sync", testView.GateKeeper(), testView.NonActivationBlocker(), testView.RequestPreprocessor(testView.Sync), testView.ProcessedResponseGenerator(testView.Sync, false))
+	req, _ = http.NewRequest("POST", url, body)
+	req.Header.Set("Authorization", "Bearer "+p.AccessToken)
+	req.Header.Add("X-REMOLET-DEVICE-ID", p.Uuid)
+	os.Stdout.Write(reqBody)
 	return
 }
 
@@ -194,6 +226,12 @@ func (p *publicDataSet) SetPublicDetail(detailNo int) {
 		p.Detail = "直译为“移情作用”。wiki中有详解，却不易理解。"
 	case 3:
 		p.Detail = "直译为“移情作用”。"
+	case 4:
+		p.Detail = "a直译为“移情作用”，在中文中不易理解。"
+	case 5:
+		p.Detail = "a直译为“移情作用”。wiki中有详解，却不易理解。"
+	case 6:
+		p.Detail = "a直译为“移情作用”。"
 	}
 }
 
@@ -253,6 +291,151 @@ func (p *publicDataSet) GetCardReqBodyStruct() *testView.ReqCard {
 			SourceLang:  "English",
 			TargetLang:  "Chinese"},
 		CardVersionNo: p.CardIdOriginalVerNo}
+}
+
+func (p *publicDataSet) GetSyncReqBodyStructEmptyCard() *testView.ReqSync {
+	return &testView.ReqSync{
+		DeviceUUID: p.Uuid}
+}
+
+func (p *publicDataSet) GetSyncReqBodyStructEmptyCardNewDevice() *testView.ReqSync {
+	return &testView.ReqSync{
+		DeviceUUID: "p.Uuid"}
+}
+
+func (p *publicDataSet) GetSyncReqBodyStructEmptyCardNewDevice2() *testView.ReqSync {
+	return &testView.ReqSync{
+		DeviceUUID: "p.Uuid2"}
+}
+
+func (p *publicDataSet) SetSyncTestCardsInDb() {
+	session, err := mgo.Dial("mongodb://localhost:27017")
+	if err != nil {
+		panic(err)
+	}
+	s := session.Clone()
+	d1 := bson.NewObjectId()
+	p.SyncTestCardId1 = d1.Hex()
+	SyncTestCard1 := bson.M{
+		"context":      "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
+		"target":       "empathy",
+		"translation":  "感同身受",
+		"detail":       "11111",
+		"sourceLang":   "English",
+		"targetLang":   "Chinese",
+		"_id":          d1,
+		"versionNo":    2,
+		"belongTo":     bson.ObjectIdHex(p.UserId),
+		"lastModified": time.Now().UnixNano(),
+		"collectedAt":  time.Now().UnixNano(),
+		"isDeleted":    false}
+	d2 := bson.NewObjectId()
+	p.SyncTestCardId2 = d2.Hex()
+	SyncTestCard2 := bson.M{
+		"context":      "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
+		"target":       "empathy",
+		"translation":  "感同身受",
+		"detail":       "22222",
+		"sourceLang":   "English",
+		"targetLang":   "Chinese",
+		"_id":          d2,
+		"versionNo":    1,
+		"belongTo":     bson.ObjectIdHex(p.UserId),
+		"lastModified": time.Now().UnixNano(),
+		"collectedAt":  time.Now().UnixNano(),
+		"isDeleted":    false}
+	d3 := bson.NewObjectId()
+	p.SyncTestCardId3 = d3.Hex()
+	SyncTestCard3 := bson.M{
+		"context":      "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
+		"target":       "empathy",
+		"translation":  "感同身受",
+		"detail":       "33333",
+		"sourceLang":   "English",
+		"targetLang":   "Chinese",
+		"_id":          d3,
+		"versionNo":    1,
+		"belongTo":     bson.ObjectIdHex(p.UserId),
+		"lastModified": time.Now().UnixNano(),
+		"collectedAt":  time.Now().UnixNano(),
+		"isDeleted":    false}
+	d4 := bson.NewObjectId()
+	p.SyncTestCardId4 = d4.Hex()
+	SyncTestCard4 := bson.M{
+		"context":      "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
+		"target":       "empathy",
+		"translation":  "感同身受",
+		"detail":       "44444",
+		"sourceLang":   "English",
+		"targetLang":   "Chinese",
+		"_id":          d4,
+		"versionNo":    1,
+		"belongTo":     bson.ObjectIdHex(p.UserId),
+		"lastModified": time.Now().UnixNano(),
+		"collectedAt":  time.Now().UnixNano(),
+		"isDeleted":    false}
+	d5 := bson.NewObjectId()
+	p.SyncTestCardId5 = d5.Hex()
+	SyncTestCard5 := bson.M{
+		"context":      "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
+		"target":       "empathy",
+		"translation":  "感同身受",
+		"detail":       "55555",
+		"sourceLang":   "English",
+		"targetLang":   "Chinese",
+		"_id":          d5,
+		"versionNo":    2,
+		"belongTo":     bson.ObjectIdHex(p.UserId),
+		"lastModified": time.Now().UnixNano(),
+		"collectedAt":  time.Now().UnixNano(),
+		"isDeleted":    true}
+	d6 := bson.NewObjectId()
+	p.SyncTestCardId6 = d6.Hex()
+	SyncTestCard6 := bson.M{
+		"context":      "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
+		"target":       "empathy",
+		"translation":  "感同身受",
+		"detail":       "66666",
+		"sourceLang":   "English",
+		"targetLang":   "Chinese",
+		"_id":          d6,
+		"versionNo":    1,
+		"belongTo":     bson.ObjectIdHex(p.UserId),
+		"lastModified": time.Now().UnixNano(),
+		"collectedAt":  time.Now().UnixNano(),
+		"isDeleted":    true}
+	d7 := bson.NewObjectId()
+	p.SyncTestCardId7 = d7.Hex()
+	SyncTestCard7 := bson.M{
+		"context":      "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
+		"target":       "empathy",
+		"translation":  "感同身受",
+		"detail":       "77777",
+		"sourceLang":   "English",
+		"targetLang":   "Chinese",
+		"_id":          d7,
+		"versionNo":    1,
+		"belongTo":     bson.ObjectIdHex(p.UserId),
+		"lastModified": time.Now().UnixNano(),
+		"collectedAt":  time.Now().UnixNano(),
+		"isDeleted":    true}
+	_ = s.DB("mylang").C("cards").Insert(SyncTestCard1, SyncTestCard2, SyncTestCard3, SyncTestCard4, SyncTestCard5, SyncTestCard6, SyncTestCard7)
+	defer s.Close()
+	fmt.Println("p.SyncTestCardId7: ", p.SyncTestCardId7)
+}
+
+func (p *publicDataSet) GetSyncReqBodyStructWithCards() *testView.ReqSync {
+	return &testView.ReqSync{
+		DeviceUUID: p.Uuid,
+		CardList: []testView.CardsVerListElement{
+			testView.CardsVerListElement{bson.ObjectIdHex(p.SyncTestCardId1), 1},
+			testView.CardsVerListElement{bson.ObjectIdHex(p.SyncTestCardId2), 1},
+			testView.CardsVerListElement{bson.ObjectIdHex(p.SyncTestCardId3), 2},
+			testView.CardsVerListElement{bson.ObjectIdHex(p.SyncTestCardId5), 1},
+			testView.CardsVerListElement{bson.ObjectIdHex(p.SyncTestCardId6), 1},
+			testView.CardsVerListElement{bson.ObjectIdHex(p.SyncTestCardId7), 2},
+			// testView.CardsVerListElement{p.SyncTestCardId8, 1},
+		}}
 }
 
 func (p *publicDataSet) GetActivationUrlCodeFromDb(u *userX) {

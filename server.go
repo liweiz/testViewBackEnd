@@ -64,8 +64,8 @@ func main() {
 	// Create a new deviceInfo
 	// Tested!!!
 	m.Post("/users/:user_id/deviceinfos", testView.GateKeeper(), testView.NonActivationBlocker(), testView.RequestPreprocessor(testView.NewDeviceInfo), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.NewDeviceInfo, true))
-	// Sync cards and user. sync
-	m.Post("/users/:user_id/sync", testView.RequestPreprocessor(testView.Sync), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.Sync, false))
+	// Sync cards and user. sync. No request id needed for sync. Everytime a sync request received by server, server responses and client take the result to decide what to do next.
+	m.Post("/users/:user_id/sync", testView.GateKeeper(), testView.NonActivationBlocker(), testView.RequestPreprocessor(testView.Sync), testView.ProcessedResponseGenerator(testView.Sync, false))
 	// Update a new card. oneCard
 	m.Post("/users/:user_id/cards/:card_id", testView.GateKeeper(), testView.NonActivationBlocker(), testView.RequestPreprocessor(testView.OneCard), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.OneCard, true))
 	// Create a new card. newCard

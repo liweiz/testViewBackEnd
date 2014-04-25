@@ -98,10 +98,25 @@ func GetFuncForTestStep(m *MyMartini, p *publicDataSet, u1 *userX, u2 *userX) ma
 			reqBodyStruct := p.GetCardReqBodyStruct()
 			return p.TestDeleteCard(m, reqBodyStruct), 16
 		}, // delete card
-		"Sync": func() (*http.Request, int) {
-			fmt.Println("================================= Sync =================================")
-			// reqBodyStruct := p.GetCardReqBodyStruct()
-			return nil, 17
+		"SyncEmptyCard": func() (*http.Request, int) {
+			fmt.Println("================================= SyncEmptyCard =================================")
+			reqBodyStruct := p.GetSyncReqBodyStructEmptyCard()
+			return p.TestSync(m, reqBodyStruct), 17
+		}, // sync
+		"SyncEmptyCardNewDevice": func() (*http.Request, int) {
+			fmt.Println("================================= SyncEmptyCardNewDevice =================================")
+			reqBodyStruct := p.GetSyncReqBodyStructEmptyCardNewDevice()
+			return p.TestSync(m, reqBodyStruct), 18
+		}, // sync
+		"SyncWithCards": func() (*http.Request, int) {
+			fmt.Println("================================= SyncWithCards =================================")
+			reqBodyStruct := p.GetSyncReqBodyStructWithCards()
+			return p.TestSync(m, reqBodyStruct), 19
+		}, // sync
+		"SyncEmptyCardNewDevice2": func() (*http.Request, int) {
+			fmt.Println("================================= SyncEmptyCardNewDevice2 =================================")
+			reqBodyStruct := p.GetSyncReqBodyStructEmptyCardNewDevice2()
+			return p.TestSync(m, reqBodyStruct), 20
 		}, // sync
 		"assign tokens to user1": func() (*http.Request, int) {
 			fmt.Println("================================= assign tokens to user1 =================================")
@@ -284,6 +299,11 @@ func GetFuncForTestStep(m *MyMartini, p *publicDataSet, u1 *userX, u2 *userX) ma
 			fmt.Println("================================= remove all cards in db =================================")
 			p.ClearAllCardsInDb()
 			return nil, 135
+		},
+		"insert cards in db for sync test": func() (*http.Request, int) {
+			fmt.Println("================================= insert cards in db for sync test =================================")
+			p.SetSyncTestCardsInDb()
+			return nil, 136
 		},
 	}
 }

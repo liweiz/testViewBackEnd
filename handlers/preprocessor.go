@@ -5,7 +5,7 @@ import (
 	"errors"
 	"github.com/go-martini/martini"
 	// "io/ioutil"
-	// "fmt"
+	"fmt"
 	"labix.org/v2/mgo/bson"
 	"log"
 	"net/http"
@@ -146,25 +146,6 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 				PrepareVehicle(ctx, reqStruct, nil, c, "", "")
 			}
 		}
-	case Sync:
-		if m == "POST" {
-			reqStruct := &ReqSync{}
-			resStruct := &ResSync{}
-			err = GetStructFromReq(req, reqStruct)
-			if err == nil {
-				idToCheckUser := bson.ObjectIdHex(params["user_id"])
-				cUser := bson.M{
-					"_id": idToCheckUser,
-					// Compared with non-deleted cards only to minimize the resource needed.
-					"isDeleted": false}
-				cDeviceInfo := bson.M{
-					"_id": reqStruct.DeviceInfo.Id}
-				cCards := bson.M{
-					"belongTo":  idToCheckUser,
-					"isDeleted": false}
-				PrepareVehicleSync(ctx, reqStruct, resStruct, cUser, cDeviceInfo, cCards, reqStruct.RequestId, reqStruct.DeviceUUID)
-			}
-		}
 	case NewCard:
 		reqStruct := &ReqCard{}
 		resStruct := &ResCards{}
@@ -193,6 +174,15 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 			}
 		} else if m == "GET" {
 			PrepareVehicle(ctx, nil, resStruct, c, "", "")
+		}
+	case Sync:
+		if m == "POST" {
+			reqStruct := &ReqSync{}
+			resStruct := &ResSync{}
+			err = GetStructFromReq(req, reqStruct)
+			if err == nil {
+				PrepareVehicle(ctx, reqStruct, resStruct, nil, "", reqStruct.DeviceUUID)
+			}
 		}
 	/*
 		The request is actually reassemmbled by server to form a query. All the information needed is delivered with the url.
@@ -282,6 +272,9 @@ func GetStructFromReq(req *http.Request, s interface{}) (err error) {
 	if req.Body != nil {
 		decoder := json.NewDecoder(req.Body)
 		err = decoder.Decode(s)
+		if err != nil {
+			fmt.Println("GetStructFromReq err: ", err.Error())
+		}
 	} else {
 		err = errors.New("Request body is nil.")
 	}
@@ -310,19 +303,6 @@ func PrepareVehicle(ctx martini.Context, reqS interface{}, resS interface{}, c b
 	ctx.Map(&v)
 }
 
-func PrepareVehicleSync(ctx martini.Context, reqS interface{}, resS interface{}, c bson.M, c2 bson.M, c3 bson.M, requestId string, deviceUUID string) {
-	v := Vehicle{}
-
-	v.ReqStruct = reqS
-	v.ResStruct = resS
-	v.Criteria = c
-	v.Criteria2 = c2
-	v.Criteria3 = c3
-	v.RequestId = requestId
-	v.DeviceUUID = deviceUUID
-	ctx.Map(&v)
-}
-
 func GetVehicleContentInContext(ctx martini.Context, fieldName string) reflect.Value {
 	v := ctx.Get(reflect.TypeOf(Vehicle{}))
 	if v.Kind() == reflect.Ptr {
@@ -335,11 +315,7 @@ type Vehicle struct {
 	ReqStruct interface{}
 	ResStruct interface{}
 	Criteria  bson.M
-	Decision  int
 	// Only need to be filled when necessary
 	RequestId  string
 	DeviceUUID string
-	// These two are optional. They are basically for sync request since there are 3 entities to look into: card, user, deviceInfo.
-	Criteria2 bson.M
-	Criteria3 bson.M
 }

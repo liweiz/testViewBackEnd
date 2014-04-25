@@ -234,47 +234,6 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 				_, _ = UpdateNonDicDB(UserRemovePasswordUrlCodeRoutinely, nil, db, params, userId)
 				_ = RemoveUserPasswordUrlCodeOne(db, params, userId)
 			}
-		// Activating only changes email after user being activated. It goes through html, not here, either.
-		case Sync:
-			userId := bson.ObjectIdHex(params["user_id"])
-			// Sync User
-			var myUser UserInCommon
-			err = db.C("users").Find(bson.M{
-				"_id":       userId,
-				"isDeleted": false}).Select(GetSelector(SelectUserInCommon)).One(&myUser)
-			if err == nil {
-				if myUser.VersionNo > x.FieldByName("User").FieldByName("VersionNo").Int() {
-					// No need to send userInCommon to client in other cases.
-					err = SetResBodyPart(v.FieldByName("User"), "User", reflect.ValueOf(myUser))
-					if err == nil {
-						// Sync DeviceInfo
-						var myDeviceInfo *DeviceInfoInCommon
-						err = db.C("deviceInfos").Find(bson.M{
-							"belongTo":   userId,
-							"deviceUUID": x.FieldByName("DeviceUUID").String(),
-							"_id":        x.FieldByName("DeviceInfo").FieldByName("_id")}).Select(GetSelector(SelectDeviceInfoInCommon)).One(myDeviceInfo)
-						if err == mgo.ErrNotFound {
-							// No deviceInfo for this device yet, depending on the situation, let user create on client or get the default back to client.
-							err = nil
-							myDeviceInfo, err = GetDefaultDeviceInfo(userId, db)
-							if err == mgo.ErrNotFound {
-								err = nil
-								err = errors.New("No deviceInfo found for this account, please create one on device first.")
-							}
-							if err == nil {
-								err = SetResBodyPart(v.FieldByName("DeviceInfo"), "DeviceInfo", reflect.ValueOf(myDeviceInfo))
-								if err == nil {
-									var cardListDB []CardsVerList
-									cardListDB, err = GetDbCardVerList(db, userId)
-									if err == nil {
-										err = GetCardListDifference(db, cardListDB, x.FieldByName("CardList"), v.FieldByName("CardList"), v.FieldByName("CardToDelete"))
-									}
-								}
-							}
-						}
-					}
-				}
-			}
 		case NewCard:
 			var r []CardInCommon
 			r, _, err = InsertNewCard(db, structFromReq, params)
@@ -326,6 +285,48 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 						r = make([]CardInCommon, 0)
 						r = append(r, t)
 						err = SetResBodyPart(v.FieldByName("Cards"), "Cards", reflect.ValueOf(r))
+					}
+				}
+			}
+			// Activating only changes email after user being activated. It goes through html, not here, either.
+		case Sync:
+			userId := bson.ObjectIdHex(params["user_id"])
+			// Sync User
+			var myUser UserInCommon
+			err = db.C("users").Find(bson.M{
+				"_id":       userId,
+				"isDeleted": false}).Select(GetSelector(SelectUserInCommon)).One(&myUser)
+			if err == nil {
+				// Overwrite client's with server's anyway
+				err = SetResBodyPart(v.FieldByName("User"), "User", reflect.ValueOf(myUser))
+				if err == nil {
+					// Sync DeviceInfo
+					var myDeviceInfo DeviceInfoInCommon
+					err = db.C("deviceInfos").Find(bson.M{
+						"belongTo":   userId,
+						"deviceUUID": x.FieldByName("DeviceUUID").String()}).Select(GetSelector(SelectDeviceInfoInCommon)).One(&myDeviceInfo)
+					if err == mgo.ErrNotFound {
+						// No deviceInfo for this device yet, depending on the situation, let user create on client or get the default back to client.
+						err = nil
+						myDeviceInfo, err = GetDefaultDeviceInfo(userId, x.FieldByName("DeviceUUID").String(), db)
+						if err == mgo.ErrNotFound {
+							err = errors.New("No deviceInfo found for this account, please create one on device first.")
+						}
+					}
+					if err == nil {
+						// Overwrite client's with server's anyway
+						err = SetResBodyPart(v.FieldByName("DeviceInfo"), "DeviceInfo", reflect.ValueOf(myDeviceInfo))
+						if err == nil {
+							var cardListDB []CardsVerListElement
+							cardListDB, err = GetDbCardVerList(db, userId)
+							if err == nil {
+								fmt.Println("cardListDB length: ", len(cardListDB))
+								err = GetCardListDifference(db, cardListDB, x.FieldByName("CardList"), v.FieldByName("CardList"), v.FieldByName("CardToDelete"))
+								if err != nil {
+									fmt.Println("GetCardListDifference err: ", err.Error())
+								}
+							}
+						}
 					}
 				}
 			}
@@ -395,9 +396,9 @@ func SetGetDeviceTokens(userId bson.ObjectId, structFromReq interface{}, db *mgo
 	return
 }
 
-func GetDbCardVerList(db *mgo.Database, userId bson.ObjectId) (r []CardsVerList, err error) {
+func GetDbCardVerList(db *mgo.Database, userId bson.ObjectId) (r []CardsVerListElement, err error) {
 	// Shoud identify the err returned for further possibities.
-	err = db.C("Cards").Find(bson.M{
+	err = db.C("cards").Find(bson.M{
 		"belongTo":  userId,
 		"isDeleted": false}).Select(bson.M{
 		"_id":       1,
@@ -405,26 +406,32 @@ func GetDbCardVerList(db *mgo.Database, userId bson.ObjectId) (r []CardsVerList,
 	return
 }
 
-func GetCardListDifference(db *mgo.Database, cardListDB []CardsVerList, cardListReq reflect.Value, cardListRes reflect.Value, cardsToDelete reflect.Value) (errs error) {
+func GetCardListDifference(db *mgo.Database, cardListDB []CardsVerListElement, cardListReq reflect.Value, cardListRes reflect.Value, cardsToDeleteRes reflect.Value) (err error) {
 	// cardListReq: []CardsVerList, cardListRes: []CardInCommon, cardsToDelete: []bson.ObjectId
 	// The difference is to overwrite/add docs on client
 	// Only non-deleted cards on db here, see PreprocessRequest.
-	if !cardListRes.CanSet() || !cardsToDelete.CanSet() {
+	if !cardListRes.CanSet() || !cardsToDeleteRes.CanSet() {
 		return
 	}
-	for x := range cardListDB {
+	cardList := []CardInCommon{}
+	cardsToDelete := []bson.ObjectId{}
+	fmt.Println("card list db: ", cardListDB)
+	for _, x := range cardListDB {
 		// Reset the flag
 		hasMatch := false
-		xx := cardListDB[x]
 		// Search if the specific id exists
+		fmt.Println("id string card db: ", x.Id.Hex())
+		fmt.Println("cardListReq.Len: ", cardListReq.Len())
 		for y := 0; y < cardListReq.Len(); y++ {
-			if xx.Id == bson.ObjectIdHex(cardListReq.Index(y).FieldByName("Id").String()) {
+			fmt.Println("id string card req: ", cardListReq.Index(y).FieldByName("Id").String())
+			if string(x.Id) == cardListReq.Index(y).FieldByName("Id").String() {
+				fmt.Println("Equal")
 				hasMatch = true
-				if xx.VersionNo == cardListReq.Index(y).FieldByName("VersionNo").Int() {
+				if x.VersionNo == cardListReq.Index(y).FieldByName("VersionNo").Int() {
 					// Same version, do nothing
 				} else {
 					// Overwrite the doc on client even if x.VersionNo < cardListReq.Index(y).FieldByName("VersionNo").Int() which indicates something wrong on client.
-					err := PushCardToCardList(db, cardListRes, xx.Id)
+					cardList, err = PushCardToCardList(db, cardList, x.Id)
 					if err != nil {
 						return
 					}
@@ -434,37 +441,57 @@ func GetCardListDifference(db *mgo.Database, cardListDB []CardsVerList, cardList
 		}
 		// If the specific id not exists, push to list
 		if hasMatch == false {
-			err := PushCardToCardList(db, cardListRes, xx.Id)
+			cardList, err = PushCardToCardList(db, cardList, x.Id)
+			fmt.Println("cardList length00000: ", len(cardList))
 			if err != nil {
+				fmt.Println("cardList length err: ", err.Error())
 				return
 			}
 		}
 	}
+	fmt.Println("cardList length1111: ", len(cardList))
+	if len(cardList) > 0 {
+		err = SetResBodyPart(cardListRes, "CardList", reflect.ValueOf(cardList))
+	}
 	// Just find out which ones are not on server
 	for k := 0; k < cardListReq.Len(); k++ {
+		noMatch := true
+		fmt.Println("cardListReq.Index(k): ", cardListReq.Index(k).FieldByName("Id").String())
 		// Search if the specific id exists
-		for j := range cardListDB {
-			jj := cardListDB[j]
-			if bson.ObjectIdHex(cardListReq.Index(k).FieldByName("Id").String()) == jj.Id {
+		for _, j := range cardListDB {
+			fmt.Println("cardListDB: ", string(j.Id))
+			if cardListReq.Index(k).FieldByName("Id").String() == string(j.Id) {
+				noMatch = false
 				break
 			}
 		}
-		// If the specific id not exists, push to delete list anyway
-		cardsToDelete = reflect.Append(cardsToDelete, cardListReq.Index(k).FieldByName("Id"))
+		if noMatch {
+			// If the specific id not exists, push to delete list anyway
+			cardsToDelete = append(cardsToDelete, bson.ObjectId(cardListReq.Index(k).FieldByName("Id").String()))
+		}
+	}
+	if len(cardsToDelete) > 0 {
+		err = SetResBodyPart(cardsToDeleteRes, "CardToDelete", reflect.ValueOf(cardsToDelete))
 	}
 	return
 }
 
-func PushCardToCardList(db *mgo.Database, cardList reflect.Value, cardID bson.ObjectId) (err error) {
-	// cardList: []CardInCommon
+func PushCardToCardList(db *mgo.Database, cardList []CardInCommon, cardID bson.ObjectId) (newCardList []CardInCommon, err error) {
 	var aCard CardInCommon
 	err = db.C("cards").Find(bson.M{
 		"_id":       cardID,
-		"isDeleted": false}).Select(bson.M{
-		"isDeleted": 0}).One(&aCard)
-	if err == nil {
-		cardList = reflect.Append(cardList, reflect.ValueOf(aCard))
+		"isDeleted": false}).Select(GetSelector(SelectCardInCommon)).One(&aCard)
+	fmt.Println("PushCardToCardList card: ", aCard)
+	fmt.Println("PushCardToCardList cardId: ", cardID.Hex())
+	if err != nil {
+		fmt.Println("PushCardToCardList err: ", err.Error())
+		return
 	}
+	if err == nil {
+		newCardList = append(cardList, aCard)
+	}
+	fmt.Println("PushCardToCardList cardList: ", cardList)
+	fmt.Println("PushCardToCardList newCardList: ", newCardList)
 	// err == mgo.ErrNotFound is still an error here.
 	return
 }

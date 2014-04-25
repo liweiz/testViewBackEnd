@@ -7,6 +7,7 @@ import (
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"reflect"
+	"time"
 )
 
 const (
@@ -115,17 +116,42 @@ func EnsureDeviceInfoUniqueness(db *mgo.Database, userId bson.ObjectId, aUUID st
 }
 
 // Default setting is the latest setting user uses. So compare all the deveiceInfo the user has and get the latest updated one to send to the new device as the initial settings on the device. Store it in db as well.
-func GetDefaultDeviceInfo(userId bson.ObjectId, db *mgo.Database) (info *DeviceInfoInCommon, err error) {
+func GetDefaultDeviceInfo(userId bson.ObjectId, deviceUUID string, db *mgo.Database) (info DeviceInfoInCommon, err error) {
 	var r []DeviceInfo
 	err = db.C("deviceInfos").Find(bson.M{
 		"belongTo": userId}).All(&r)
 	if err == nil {
-		info, err = GetLatestUpdatedDeviceInfo(r)
+		var temp DeviceInfoInCommon
+		temp, err = GetLatestUpdatedDeviceInfo(r)
+		if err == nil {
+			newId := bson.NewObjectId()
+			err = db.C("deviceInfos").Insert(bson.M{
+				// DeviceInfoInCommon
+				"_id":        newId,
+				"belongTo":   userId,
+				"deviceUUID": deviceUUID,
+				// These are set by users after a successful signup.
+				"sourceLang": temp.SourceLang,
+				"targetLang": temp.TargetLang,
+				"isLoggedIn": true,
+				"rememberMe": true,
+				"sortOption": temp.SortOption,
+
+				// Non DeviceInfoInCommon part
+				"lastModified": time.Now().UnixNano(),
+				"dicTier2":     "",
+				"dicTier3":     "",
+				"dicTier4":     ""})
+			if err == nil {
+				err = db.C("deviceInfos").Find(bson.M{"_id": newId}).Select(GetSelector(SelectDeviceInfoInCommon)).One(&info)
+			}
+		}
 	}
+
 	return
 }
 
-func GetLatestUpdatedDeviceInfo(l []DeviceInfo) (info *DeviceInfoInCommon, err error) {
+func GetLatestUpdatedDeviceInfo(l []DeviceInfo) (info DeviceInfoInCommon, err error) {
 	if len(l) > 0 {
 		r := FormIntSliceFromDocSlice(l, "LastModified")
 		var x int64
@@ -133,20 +159,15 @@ func GetLatestUpdatedDeviceInfo(l []DeviceInfo) (info *DeviceInfoInCommon, err e
 		if err == nil {
 			for i := range l {
 				if l[i].LastModified == x {
-					info.Id = l[i].Id
-					info.BelongTo = l[i].BelongTo
-					info.DeviceUUID = l[i].DeviceUUID
 					info.SourceLang = l[i].SourceLang
 					info.TargetLang = l[i].TargetLang
 					info.SortOption = l[i].SortOption
-					info.IsLoggedIn = l[i].IsLoggedIn
-					info.RememberMe = l[i].RememberMe
 					return
 				}
 			}
 		}
 	} else {
-		err = errors.New("No element found in slice.")
+		err = errors.New("No element found in server device info slice.")
 	}
 	return
 }
@@ -156,7 +177,7 @@ func FormIntSliceFromDocSlice(docSlice interface{}, fieldName string) (r []int64
 	if d.Kind() == reflect.Ptr {
 		d = d.Elem()
 	}
-	r = make([]int64, 0)
+	// r = make([]int64, 0)
 	if d.Len() > 0 {
 		for i := 0; i < d.Len(); i++ {
 			dd := d.Index(i)

@@ -49,24 +49,28 @@ func TestSteps(t *testing.T) {
 	p.SortOption = "1"
 	fTestFlow := []funcForTestStep{
 		// user1 signs up, signs in, renew tokens
-		f["SignUp"],                        // user1 signs up on device1
-		f["assign tokens to user1"],        // assign tokens to user1device1
-		f["SignUp"],                        // try sign up with the dulpicated email
-		f["SignIn"],                        // user1 signs in on device1
-		f["assign tokens to user1"],        // assign tokens to user1device1
-		f["assign device2 uuid to public"], // change uuid to device2's
-		f["SignIn"],                        // user1 signs in on device2
-		f["assign tokens to user1"],        // assign tokens to user1device2
-		f["assign device1 uuid to public"], // change uuid to device1's
-		f["assign user1 tokens to public"], // change tokens to user1device1's
-		f["RenewTokens"],                   // renew tokens for user1device1
-		f["assign tokens to user1"],        // assign tokens to user1device1
+		f["SignUp"],                 // user1 signs up on device1
+		f["assign tokens to user1"], // assign tokens to user1device1
+
+		/////////////////////// user's tokens BEGINS /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// f["SignUp"],                        // try sign up with the dulpicated email
+		// f["SignIn"],                        // user1 signs in on device1
+		// f["assign tokens to user1"],        // assign tokens to user1device1
+		// f["assign device2 uuid to public"], // change uuid to device2's
+		// f["SignIn"],                        // user1 signs in on device2
+		// f["assign tokens to user1"],        // assign tokens to user1device2
+		// f["assign device1 uuid to public"], // change uuid to device1's
+		// f["assign user1 tokens to public"], // change tokens to user1device1's
+		// f["RenewTokens"],                   // renew tokens for user1device1
+		// f["assign tokens to user1"],        // assign tokens to user1device1
+		/////////////////////// user's tokens ENDS /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 		// activate user1
 		f["ActivationEmail"],                            // send activation email for user1
 		f["assign user1 activation url code to public"], // get and assign user1 activation url code to public
 		f["ClickActivationLink"],                        // activate user1
 
+		/////////////////////// password resetting BEGINS /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		// change user1's password
 		// f["PasswordResettingEmailByToken"],                 // get user1 pwd resetting email by token
 		// f["assign user1 pwd resetting url code to public"], // get and assign user1 pwd resetting url code to public
@@ -74,13 +78,14 @@ func TestSteps(t *testing.T) {
 		// f["PasswordResettingEmailByEmail"],                 // get user1 pwd resetting email by email
 		// f["assign user1 pwd resetting url code to public"], // get and assign user1 pwd resetting url code to public
 		// f["ChangePassword"],                                // change user1 password through url
+		/////////////////////// password resetting ENDS /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-		// create and update new deviceInfo, pls see info architecture.xlsx sheet10
-		// starting point
-		f["NewDeviceInfo"], // create a device info for device1
-		f["assign device1 2nd reqId to public"],
-		f["assign sort option '2' to public"],
-		f["UpdateDeviceInfo"], // update a device info for device1
+		// // create and update new deviceInfo, pls see info architecture.xlsx sheet10
+		// // starting point
+		// f["NewDeviceInfo"], // create a device info for device1
+		// f["assign device1 2nd reqId to public"],
+		// f["assign sort option '2' to public"],
+		// f["UpdateDeviceInfo"], // update a device info for device1
 
 		/////////////////////// single card CRUD BEGINS /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		// first card, this no is from Excel file column E
@@ -152,6 +157,17 @@ func TestSteps(t *testing.T) {
 		// f["assign card id original ver no greater than db's to public"],
 		// f["UpdateCardV1"],
 		/////////////////////// single card CRUD ENDS /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+		// sync begins
+		// no device info on both
+		f["SyncEmptyCard"],
+		f["NewDeviceInfo"], // create a device info for device1
+		f["SyncEmptyCardNewDevice"],
+		f["SyncEmptyCard"],
+		f["insert cards in db for sync test"],
+		f["SyncWithCards"],
+		f["assign device2 uuid to public"],
+		f["SyncEmptyCardNewDevice2"],
 	}
 	RunOperationFlow(fTestFlow, m, p)
 

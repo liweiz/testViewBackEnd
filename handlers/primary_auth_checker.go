@@ -65,7 +65,7 @@ func ValidatePrimaryAuth(db *mgo.Database, r *http.Request, params martini.Param
 	auth, err = GetAuthInHeader(r)
 	if err == nil {
 		var isMatched bool
-		isMatched, err = MatchPrimaryAuth(auth, db, params)
+		isMatched, err = MatchPrimaryAuth(auth, db, params, r)
 		if isMatched {
 			isValid = true
 		}
@@ -74,7 +74,7 @@ func ValidatePrimaryAuth(db *mgo.Database, r *http.Request, params martini.Param
 }
 
 // PrimaryAuth means password or accessToken. isMatched simply means it is the same as the one stored in db. But it may already be expired.
-func MatchPrimaryAuth(auth *AuthInHeader, db *mgo.Database, params martini.Params) (isMatched bool, err error) {
+func MatchPrimaryAuth(auth *AuthInHeader, db *mgo.Database, params martini.Params, r *http.Request) (isMatched bool, err error) {
 	if auth.AuthType == "Basic" {
 		var user User
 		err = db.C("users").Find(bson.M{"email": auth.Email}).One(&user)
@@ -89,7 +89,7 @@ func MatchPrimaryAuth(auth *AuthInHeader, db *mgo.Database, params martini.Param
 	}
 	if auth.AuthType == "Bearer" {
 		var myDeviceTokens DeviceTokens
-		err = db.C("deviceTokens").Find(bson.M{"accessToken": auth.AccessToken, "belongTo": bson.ObjectIdHex(params["user_id"])}).One(&myDeviceTokens)
+		err = db.C("deviceTokens").Find(bson.M{"accessToken": auth.AccessToken, "belongTo": bson.ObjectIdHex(params["user_id"]), "deviceUUID": r.Header.Get("X-REMOLET-DEVICE-ID")}).One(&myDeviceTokens)
 		if err == mgo.ErrNotFound {
 			err = errors.New("No such token and user pair found.")
 		}

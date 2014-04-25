@@ -52,19 +52,16 @@ type ReqCard struct {
 	CardVersionNo int64           `json:"cardVersionNo"`
 }
 
-type CardsVerList struct {
-	Id        bson.ObjectId `json:"id"`
-	VersionNo int64         `json:"versionNo"`
+type CardsVerListElement struct {
+	Id        bson.ObjectId `bson:"_id" json:"_id"`
+	VersionNo int64         `bson:"versionNo" json:"versionNo"`
 }
 
 type ReqSync struct {
-	RequestId  string             `json:"requestId"`
-	DeviceUUID string             `json:"deviceUUID"`
-	User       UserInCommon       `json:"user"`
-	DeviceInfo DeviceInfoInCommon `json:"deviceInfo"`
+	DeviceUUID string `json:"deviceUUID"`
 	// A map with id and versionNo
 	// Deleted cards are not included in the map. If it is not deleted on server, just add it back to the client again witht the sync response.
-	CardList []CardsVerList `json:"cardList"`
+	CardList []CardsVerListElement `json:"cardList"`
 }
 
 type ReqWords struct {
