@@ -4,140 +4,6 @@ import (
 	"labix.org/v2/mgo/bson"
 )
 
-/*
-Response body structure(JSON):
-
-RESTful for single card:
-Request:
-{
-    "requestVersionNo": number,
-
-    "user": {
-    	"email": string,
-    	"activated": boolean,
-    	"isLoggedIn": boolean,
-    	"rememberMe": boolean,
-    	"sortOption": string,
-    	"LastModified": number,
-    	"id": string,
-    	"versionNo": number
-    },
-
-    "card": {
-		"belongTo": string,
-    	"collectedAt": number,
-    	"context": string,
-    	"createdAt": number,
-    	"createdBy": string,
-        "detail": string,
-        "sourceLang": string,
-        "target": string,
-        "targetLang": string,
-        "translation": string,
-        "HasTag": array,
-        "collectedBy": string,
-        "lastModified": number,
-        "id": string,
-        "versionNo": number,
-    },
-}
-New: send full card
-Update: send full card
-Delete: send id and versionNo of card only
-
-Response:
-
-Sync request:
-{
-    "requestVersionNo": number,
-
-    "user": {
-        "email": string,
-        "activated": boolean,
-        "isLoggedIn": boolean,
-        "rememberMe": boolean,
-        "sortOption": string,
-        "LastModified": number,
-        "id": string,
-        "versionNo": number
-    },
-
-    "cardList": {
-        "id": versionNo
-    },
-}
-
-Response:
-{
-    "requestVersionNo": number,
-
-    "user": {
-        "email": string,
-        "activated": boolean,
-        "isLoggedIn": boolean,
-        "rememberMe": boolean,
-        "sortOption": string,
-        "LastModified": number,
-        "id": string,
-        "versionNo": number
-    },
-
-    "cardToCreate": [
-        {
-            "belongTo": string,
-            "collectedAt": number,
-            "context": string,
-            "createdAt": number,
-            "createdBy": string,
-            "detail": string,
-            "sourceLang": string,
-            "target": string,
-            "targetLang": string,
-            "translation": string,
-            "HasTag": array,
-            "collectedBy": string,
-            "lastModified": number,
-            "id": string,
-            "versionNo": number
-        },
-        {
-            ...
-        },
-    ],
-    "cardToUpdate": [
-        {
-            "belongTo": string,
-            "collectedAt": number,
-            "context": string,
-            "createdAt": number,
-            "createdBy": string,
-            "detail": string,
-            "sourceLang": string,
-            "target": string,
-            "targetLang": string,
-            "translation": string,
-            "HasTag": array,
-            "collectedBy": string,
-            "lastModified": number,
-            "id": string,
-            "versionNo": number
-        },
-        {
-            ...
-        },
-    ],
-    "cardToDelete": [
-        {
-            "id": string,
-            "versionNo": number
-        },
-        {
-            ...
-        },
-    ]
-}
-*/
-
 type CardToDeleteInRes struct {
 	ID bson.ObjectId `json:"id"`
 	// VersionNo int64         `json:"versionNo"`
@@ -197,13 +63,19 @@ type ResSync struct {
 }
 
 type DicTextInRes struct {
-	Id                string `json:"id"`
-	Text              string `json:"text"`
-	ChildrenUpdatedAt int64  `json:"childrenUpdatedAt"`
+	Id       bson.ObjectId `bson:"_id" json:"id"`
+	Text     string        `bson:"text" json:"text"`
+	TextType int           `bson:"textType" json:"textType"`
 }
 
-type ResDicResults struct {
+type ResDicResultsText struct {
+	TextType       int            `json:"textType"`
+	TopLevelTextId bson.ObjectId  `json:"topLevelTextId"`
+	Results        []DicTextInRes `json:"results"`
+}
+
+type ResDicResultsId struct {
 	// Level: translation/detail/context
-	Level   string         `json:"level"`
-	Results []DicTextInRes `json:"results"`
+	TextType int            `json:"textType"`
+	Results  []DicTextInRes `json:"results"`
 }

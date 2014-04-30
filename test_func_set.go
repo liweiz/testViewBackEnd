@@ -118,6 +118,16 @@ func GetFuncForTestStep(m *MyMartini, p *publicDataSet, u1 *userX, u2 *userX) ma
 			reqBodyStruct := p.GetSyncReqBodyStructEmptyCardNewDevice2()
 			return p.TestSync(m, reqBodyStruct), 20
 		}, // sync
+		"SearchDicByText": func() (*http.Request, int) {
+			fmt.Println("================================= SearchDicByText =================================")
+			reqBodyStruct := p.GetDicSearchByTextReqBodyStruct()
+			return p.TestDicSearchByText(m, reqBodyStruct), 21
+		},
+		"SearchDicById": func() (*http.Request, int) {
+			fmt.Println("================================= SearchDicById =================================")
+			reqBodyStruct := p.GetDicSearchByIdReqBodyStruct()
+			return p.TestDicSearchById(m, reqBodyStruct), 22
+		},
 		"assign tokens to user1": func() (*http.Request, int) {
 			fmt.Println("================================= assign tokens to user1 =================================")
 			u1.SetUserTokens(p)
@@ -304,6 +314,11 @@ func GetFuncForTestStep(m *MyMartini, p *publicDataSet, u1 *userX, u2 *userX) ma
 			fmt.Println("================================= insert cards in db for sync test =================================")
 			p.SetSyncTestCardsInDb()
 			return nil, 136
+		},
+		"print all dicText in db": func() (*http.Request, int) {
+			fmt.Println("================================= print all dicText in db test =================================")
+			p.PrintAllDicTextInDb()
+			return nil, 137
 		},
 	}
 }

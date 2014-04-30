@@ -102,12 +102,8 @@ func main() {
 	// Get all cards
 	// m.Get("/users/:user_id/cards")
 
-	// Get context list based on words, translation and detail. dicDetail
-	//m.Get("/dic/:sourcelang/:targetlang/:words_id/:translation_id/:detail_id")
-	// Get detail list based on words and translation. dicTranslation
-	//m.Get("/dic/:sourcelang/:targetlang/:words_id/:translation_id")
-	// Get translation list based on words. dicWords
-	m.Post("/dic/:sourcelang/:targetlang", testView.RequestPreprocessor(testView.DicWords), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.DicWords, false))
+	m.Post("/dic/:source_lang_code/:target_lang_code/text/:user_id", testView.GateKeeper(), testView.NonActivationBlocker(), testView.DicTextSearcher())
+	m.Post("/dic/:source_lang_code/:target_lang_code/id/:user_id", testView.GateKeeper(), testView.NonActivationBlocker(), testView.DicIdSearcher())
 
 	// Serve assets
 	m.Get("/assets/css/bootstrap.min.css", testView.AssetsServer(testView.BootstrapCssMin))

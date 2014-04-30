@@ -93,6 +93,19 @@ func RunOperationFlow(OperationFlow []funcForTestStep, m *MyMartini, p *publicDa
 							p.CardIdDerived = r.Cards[0].Id.Hex()
 						}
 					}
+				case 21:
+					r := &testView.ResDicResultsText{}
+					err = json.Unmarshal(d, r)
+					if len(r.Results) > 0 {
+						p.LastIdInSearch = r.Results[len(r.Results)-1].Id.Hex()
+					}
+					p.ParentIdInSearch = r.TopLevelTextId.Hex()
+				case 22:
+					r := &testView.ResDicResultsId{}
+					err = json.Unmarshal(d, r)
+					if len(r.Results) > 0 {
+						p.LastIdInSearch = r.Results[len(r.Results)-1].Id.Hex()
+					}
 				default:
 					//
 				}

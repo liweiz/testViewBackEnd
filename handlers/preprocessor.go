@@ -28,10 +28,6 @@ const (
 	Sync
 	NewCard
 	OneCard
-	DicWords
-	DicTranslation
-	DicDetail
-	DicContext
 )
 
 func RequestPreprocessor(route int) martini.Handler {
@@ -172,6 +168,7 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 			if err == nil {
 				PrepareVehicle(ctx, reqStruct, resStruct, c, reqStruct.RequestId, reqStruct.DeviceUUID)
 			}
+			// Add to
 		} else if m == "GET" {
 			PrepareVehicle(ctx, nil, resStruct, c, "", "")
 		}
@@ -186,82 +183,9 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 		}
 	/*
 		The request is actually reassemmbled by server to form a query. All the information needed is delivered with the url.
-		/dic/:langpair_id/:words_id/:translation_id/:detail_id
+		/dic/:source_lang_code/:target_lang_code/:words_id/:translation_id/:detail_id
 	*/
-	// case dicWords:
-	// 	if m == "POST" {
-	// 		// Get words_id by searching db with the text from client.
-	// 		reqStruct := &ReqWords{}
-	// 		err = GetStructFromReq(req, reqStruct)
-	// 		// MOVE DB OPERATION TO REQUESTER SINCE NO DB CAN BE USED HERE.
-	// 		e1 := db
-	// 		c = bson.M{
-	// 			"_id": idToCheck,
-	// 			// Compared with non-deleted cards only to minimize the resource needed.
-	// 			"isDeleted": false}
-	// 		resStruct := ResDicResult
-	// 		sourceLang := params["sourcelang"]
-	// 		targetLang := params["targetlang"]
-	// 		// words_id from URL here is the text of the words, not id
-	// 		words := params["words_id"]
-	// 		// words := bson.ObjectIdHex(params["words_id"])
-	// 		c = bson.M{
-	// 			"sourcelang": sourceLang,
-	// 			"targetlang": targetLang,
-	// 			"length":     len(words),
-	// 			"text":       words,
-	// 			// Compared with non-deleted cards only to minimize the resource needed.
-	// 			"isDeleted": false,
-	// 			"isHidden":  false}
-	// 		PrepareVehicle(ctx, nil, resStruct, c, "", "")
-	// 	}
 
-	case DicTranslation:
-		resStruct := ResDicResults{}
-		sourceLang := params["sourcelang"]
-		targetLang := params["targetlang"]
-		// words_id from URL here is the text of the words, not id. Coz it's not easy to link user's input to the id.
-		words := params["words_id"]
-		// words := bson.ObjectIdHex(params["words_id"])
-		c := bson.M{
-			"sourcelang": sourceLang,
-			"targetlang": targetLang,
-			// 1: context, 2: target, 3: translation, 4: detail
-			"textType": 3,
-			"length":   len(words),
-			"text":     words,
-			// Compared with non-deleted cards only to minimize the resource needed.
-			"isDeleted": false,
-			"isHidden":  false}
-		PrepareVehicle(ctx, nil, resStruct, c, "", "")
-	case DicDetail:
-		resStruct := ResDicResults{}
-		sourceLang := params["sourcelang"]
-		targetLang := params["targetlang"]
-		translationId := bson.ObjectIdHex(params["translation_id"])
-		c := bson.M{
-			"sourcelang": sourceLang,
-			"targetlang": targetLang,
-			"textType":   4,
-			"belongTo":   translationId,
-			// Compared with non-deleted cards only to minimize the resource needed.
-			"isDeleted": false,
-			"isHidden":  false}
-		PrepareVehicle(ctx, nil, resStruct, c, "", "")
-	case DicContext:
-		resStruct := ResDicResults{}
-		sourceLang := params["sourcelang"]
-		targetLang := params["targetlang"]
-		contextId := bson.ObjectIdHex(params["context_id"])
-		c := bson.M{
-			"sourcelang": sourceLang,
-			"targetlang": targetLang,
-			"textType":   1,
-			"belongTo":   contextId,
-			// Compared with non-deleted cards only to minimize the resource needed.
-			"isDeleted": false,
-			"isHidden":  false}
-		PrepareVehicle(ctx, nil, resStruct, c, "", "")
 	default:
 		err = errors.New("Request not recognized.")
 	}
@@ -318,4 +242,8 @@ type Vehicle struct {
 	// Only need to be filled when necessary
 	RequestId  string
 	DeviceUUID string
+}
+
+func AddTextToDic() {
+
 }

@@ -64,6 +64,15 @@ type ReqSync struct {
 	CardList []CardsVerListElement `json:"cardList"`
 }
 
-type ReqWords struct {
-	WordsText string `json:"wordsText"`
+type ReqDicText struct {
+	WordsText   string `json:"wordsText"`
+	SortOption  string `json:"sortOption"`
+	IsAscending bool   `json:"isAscending"`
+}
+
+type ReqDicId struct {
+	ParentId    bson.ObjectId `json:"parentId"`
+	LastId      bson.ObjectId `json:"lastId"`
+	SortOption  string        `json:"sortOption"`
+	IsAscending bool          `json:"isAscending"`
 }

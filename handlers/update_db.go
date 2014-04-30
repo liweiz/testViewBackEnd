@@ -82,11 +82,15 @@ func PrepareUpdateNonDicDocDB(defaultDocType int, structFromReq interface{}) (do
 	case CardUpdate:
 		docToSave = bson.M{
 			"$set": bson.M{
-				"context":      d.FieldByName("Card").FieldByName("Context").String(),
-				"target":       d.FieldByName("Card").FieldByName("Target").String(),
-				"translation":  d.FieldByName("Card").FieldByName("Translation").String(),
-				"detail":       d.FieldByName("Card").FieldByName("Detail").String(),
-				"lastModified": time.Now().UnixNano()},
+				"context":              d.FieldByName("Card").FieldByName("Context").String(),
+				"target":               d.FieldByName("Card").FieldByName("Target").String(),
+				"translation":          d.FieldByName("Card").FieldByName("Translation").String(),
+				"detail":               d.FieldByName("Card").FieldByName("Detail").String(),
+				"lastModified":         time.Now().UnixNano(),
+				"contextDicTextId":     "",
+				"detailDicTextId":      "",
+				"targetDicTextId":      "",
+				"translationDicTextId": ""},
 			"$inc": bson.M{
 				"versionNo": 1}}
 	case UserUpdateActivation:

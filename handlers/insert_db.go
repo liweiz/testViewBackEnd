@@ -89,13 +89,17 @@ func PrepareNewNonDicDocDB(defaultDocType int, structFromReq interface{}, userId
 	switch defaultDocType {
 	case CardNew:
 		docToSave = bson.M{
-			"context":     d.FieldByName("Card").FieldByName("Context").String(),
-			"target":      d.FieldByName("Card").FieldByName("Target").String(),
-			"translation": d.FieldByName("Card").FieldByName("Translation").String(),
-			"detail":      d.FieldByName("Card").FieldByName("Detail").String(),
-			"sourceLang":  d.FieldByName("Card").FieldByName("SourceLang").String(),
-			"targetLang":  d.FieldByName("Card").FieldByName("TargetLang").String(),
-			"_id":         newId,
+			"context":              d.FieldByName("Card").FieldByName("Context").String(),
+			"target":               d.FieldByName("Card").FieldByName("Target").String(),
+			"translation":          d.FieldByName("Card").FieldByName("Translation").String(),
+			"detail":               d.FieldByName("Card").FieldByName("Detail").String(),
+			"sourceLang":           d.FieldByName("Card").FieldByName("SourceLang").String(),
+			"targetLang":           d.FieldByName("Card").FieldByName("TargetLang").String(),
+			"contextDicTextId":     "",
+			"detailDicTextId":      "",
+			"targetDicTextId":      "",
+			"translationDicTextId": "",
+			"_id": newId,
 			// VersionNo begins from 1, not 0.
 			"versionNo":    1,
 			"belongTo":     userId,
@@ -149,10 +153,7 @@ func PrepareNewNonDicDocDB(defaultDocType int, structFromReq interface{}, userId
 			"sortOption": d.FieldByName("DeviceInfo").FieldByName("SortOption").String(),
 
 			// Non DeviceInfoInCommon part
-			"lastModified": time.Now().UnixNano(),
-			"dicTier2":     "",
-			"dicTier3":     "",
-			"dicTier4":     ""}
+			"lastModified": time.Now().UnixNano()}
 	case RequestProcessedNew:
 		docToSave = bson.M{
 			"_id":          newId,
@@ -166,6 +167,53 @@ func PrepareNewNonDicDocDB(defaultDocType int, structFromReq interface{}, userId
 	fmt.Println("bson.M to insert: ", docToSave)
 	return
 }
+
+// case DicTranslation:
+// 		resStruct := ResDicResults{}
+// 		sourceLang := params["sourcelang"]
+// 		targetLang := params["targetlang"]
+// 		// words_id from URL here is the text of the words, not id. Coz it's not easy to link user's input to the id.
+// 		words := params["words_id"]
+// 		// words := bson.ObjectIdHex(params["words_id"])
+// 		c := bson.M{
+// 			"sourcelang": sourceLang,
+// 			"targetlang": targetLang,
+// 			// 1: context, 2: target, 3: translation, 4: detail
+// 			"textType": 3,
+// 			"length":   len(words),
+// 			"text":     words,
+// 			// Compared with non-deleted cards only to minimize the resource needed.
+// 			"isDeleted": false,
+// 			"isHidden":  false}
+// 		PrepareVehicle(ctx, nil, resStruct, c, "", "")
+// 	case DicDetail:
+// 		resStruct := ResDicResults{}
+// 		sourceLang := params["sourcelang"]
+// 		targetLang := params["targetlang"]
+// 		translationId := bson.ObjectIdHex(params["translation_id"])
+// 		c := bson.M{
+// 			"sourcelang": sourceLang,
+// 			"targetlang": targetLang,
+// 			"textType":   4,
+// 			"belongTo":   translationId,
+// 			// Compared with non-deleted cards only to minimize the resource needed.
+// 			"isDeleted": false,
+// 			"isHidden":  false}
+// 		PrepareVehicle(ctx, nil, resStruct, c, "", "")
+// 	case DicContext:
+// 		resStruct := ResDicResults{}
+// 		sourceLang := params["sourcelang"]
+// 		targetLang := params["targetlang"]
+// 		contextId := bson.ObjectIdHex(params["context_id"])
+// 		c := bson.M{
+// 			"sourcelang": sourceLang,
+// 			"targetlang": targetLang,
+// 			"textType":   1,
+// 			"belongTo":   contextId,
+// 			// Compared with non-deleted cards only to minimize the resource needed.
+// 			"isDeleted": false,
+// 			"isHidden":  false}
+// 		PrepareVehicle(ctx, nil, resStruct, c, "", "")
 
 // Dic in db can only be created. The only update action is to update its LastModified field, which is done through another func.
 func InsertDicDB(defaultDocType int, cardInCommon interface{}, db *mgo.Database, parentId bson.ObjectId) (err error) {
@@ -247,20 +295,23 @@ func PrepareDicDocForDB(defaultDocType int, card interface{}, parentId bson.Obje
 		newId := bson.NewObjectId()
 		now = time.Now().UnixNano()
 		docToSave = bson.M{
-			"_id":        newId,
-			"sourceLang": d.FieldByName("SourceLang").String(),
-			"targetLang": d.FieldByName("TargetLang").String(),
+			"_id":            newId,
+			"sourceLangCode": AssignCodeToLang(d.FieldByName("SourceLang").String()),
+			"targetLangCode": AssignCodeToLang(d.FieldByName("TargetLang").String()),
+			"sourceLang":     d.FieldByName("SourceLang").String(),
+			"targetLang":     d.FieldByName("TargetLang").String(),
 			// 1: context, 2: target, 3: translation, 4: detail
-			"textType":              textType,
-			"text":                  d.FieldByName(textTypeName).String(),
-			"textLength":            len(d.FieldByName(textTypeName).String()),
-			"belongToParent":        parentId,
-			"isDeleted":             false,
-			"isHidden":              false,
-			"createdAt":             now,
-			"lastModified":          now,
-			"createdBy":             d.FieldByName("BelongTo").String(),
-			"childrenLastUpdatedAt": now}
+			"textType":                     textType,
+			"text":                         d.FieldByName(textTypeName).String(),
+			"textLength":                   len(d.FieldByName(textTypeName).String()),
+			"belongToParent":               parentId,
+			"noOfUsersPickedThisUpFromDic": 0,
+			"isDeleted":                    false,
+			"isHidden":                     false,
+			"createdAt":                    now,
+			"lastModified":                 now,
+			"createdBy":                    d.FieldByName("BelongTo").String(),
+			"childrenLastUpdatedAt":        now}
 	}
 	return
 }

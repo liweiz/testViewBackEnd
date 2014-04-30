@@ -90,84 +90,90 @@ func TestSteps(t *testing.T) {
 		/////////////////////// single card CRUD BEGINS /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		// first card, this no is from Excel file column E
 		// 2
-		// f["assign device1 3rd reqId to public"],
-		// f["NewCardV1"], // this is the original card since it's the first one created
-		// // 1
-		// f["assign card id original ver no equal to db's to public"],
-		// f["assign device1 4th reqId to public"],
-		// f["NewCardV1"], // uniqueness test, but it has to be with a different request id:) the request id is not supposed to be added to db since it can not pass the uniqueness check, which generates an err.
-		// // 7
-		// f["assign device1 5th reqId to public"],
-		// f["UpdateCardV1"], // update original card with same content, should not be able to pass uniqueness check
-		// // 8
-		// f["assign device1 6th reqId to public"],
-		// f["UpdateCardV2"], // update original card with different content and same version no
-		// // 10
-		// f["assign device1 7th reqId to public"],
-		// f["assign card id original ver no equal to db's to public"],
-		// f["assign card id original ver no less than db's to public"],
-		// f["UpdateCardV1"], // update original card with different content and version no less than db's, should be ConflictCreateAnotherInDB
-		// // 9
-		// f["assign device1 8th reqId to public"],
-		// f["assign card id original ver no equal to db's to public"],
-		// f["assign card id original ver no greater than db's to public"],
-		// f["UpdateCardV3"], // should be successful with NoConflictOverwriteDB
-		// // 12
-		// f["assign device1 9th reqId to public"],
-		// f["assign card id original ver no equal to db's to public"],
-		// f["DeleteCard"], // should be successful with overwriting client to make sure no inconsistence
-		// // 11
-		// f["assign device1 10th reqId to public"],
-		// f["assign card id original ver no equal to db's to public"],
-		// f["DeleteCard"], // should be successful with NoConflictOverwriteDB
-		// // 3
-		// f["assign device1 11th reqId to public"],
-		// f["UpdateCardV1"], // should not pass uniqueness check
-		// // 4
-		// f["assign device1 12th reqId to public"],
-		// f["UpdateCardV2"], // should be ConflictCreateAnotherInDB
-		// // 6
-		// f["assign device1 13th reqId to public"],
-		// f["assign card id original ver no equal to db's to public"],
-		// f["assign card id original ver no less than db's to public"],
-		// f["UpdateCardV3"], // should be ConflictCreateAnotherInDB
-		// // remove all cards to have fresh restart, update once to make the version no equal ot 2
-		// f["remove all cards in db"],
-		// f["assign device1 14th reqId to public"],
-		// f["NewCardV1"],
-		// f["assign device1 15th reqId to public"],
-		// f["assign card id original ver no equal to db's to public"],
-		// f["UpdateCardV2"],
-		// // 14
-		// f["assign device1 16th reqId to public"],
-		// f["assign card id original ver no equal to db's to public"],
-		// f["assign card id original ver no less than db's to public"],
-		// f["DeleteCard"], // keep the card and overwrite client's, this provides another chance for user to make decision based on updated content
-		// // 13
-		// f["assign device1 17th reqId to public"],
-		// f["assign card id original ver no equal to db's to public"],
-		// f["assign card id original ver no greater than db's to public"],
-		// f["DeleteCard"], // overwrite client to make sure no inconsistence
-		// // 5
-		// f["assign device1 18th reqId to public"],
-		// f["assign card id original ver no equal to db's to public"],
-		// f["DeleteCard"], // actually delete the card to create the situation for 5
-		// f["assign device1 19th reqId to public"],
-		// f["assign card id original ver no equal to db's to public"],
-		// f["assign card id original ver no greater than db's to public"],
-		// f["UpdateCardV1"],
+		f["assign device1 3rd reqId to public"],
+		f["NewCardV1"], // this is the original card since it's the first one created
+		// 1
+		f["assign card id original ver no equal to db's to public"],
+		f["assign device1 4th reqId to public"],
+		f["NewCardV1"], // uniqueness test, but it has to be with a different request id:) the request id is not supposed to be added to db since it can not pass the uniqueness check, which generates an err.
+		// 7
+		f["assign device1 5th reqId to public"],
+		f["UpdateCardV1"], // update original card with same content, should not be able to pass uniqueness check
+		// 8
+		f["assign device1 6th reqId to public"],
+		f["UpdateCardV2"], // update original card with different content and same version no
+		// 10
+		f["assign device1 7th reqId to public"],
+		f["assign card id original ver no equal to db's to public"],
+		f["assign card id original ver no less than db's to public"],
+		f["UpdateCardV1"], // update original card with different content and version no less than db's, should be ConflictCreateAnotherInDB
+		// 9
+		f["assign device1 8th reqId to public"],
+		f["assign card id original ver no equal to db's to public"],
+		f["assign card id original ver no greater than db's to public"],
+		f["UpdateCardV3"], // should be successful with NoConflictOverwriteDB
+		// 12
+		f["assign device1 9th reqId to public"],
+		f["assign card id original ver no equal to db's to public"],
+		f["DeleteCard"], // should be successful with overwriting client to make sure no inconsistence
+		// 11
+		f["assign device1 10th reqId to public"],
+		f["assign card id original ver no equal to db's to public"],
+		f["DeleteCard"], // should be successful with NoConflictOverwriteDB
+		// 3
+		f["assign device1 11th reqId to public"],
+		f["UpdateCardV1"], // should not pass uniqueness check
+		// 4
+		f["assign device1 12th reqId to public"],
+		f["UpdateCardV2"], // should be ConflictCreateAnotherInDB
+		// 6
+		f["assign device1 13th reqId to public"],
+		f["assign card id original ver no equal to db's to public"],
+		f["assign card id original ver no less than db's to public"],
+		f["UpdateCardV3"], // should be ConflictCreateAnotherInDB
+		// remove all cards to have fresh restart, update once to make the version no equal ot 2
+		f["remove all cards in db"],
+		f["assign device1 14th reqId to public"],
+		f["NewCardV1"],
+		f["assign device1 15th reqId to public"],
+		f["assign card id original ver no equal to db's to public"],
+		f["UpdateCardV2"],
+		// 14
+		f["assign device1 16th reqId to public"],
+		f["assign card id original ver no equal to db's to public"],
+		f["assign card id original ver no less than db's to public"],
+		f["DeleteCard"], // keep the card and overwrite client's, this provides another chance for user to make decision based on updated content
+		// 13
+		f["assign device1 17th reqId to public"],
+		f["assign card id original ver no equal to db's to public"],
+		f["assign card id original ver no greater than db's to public"],
+		f["DeleteCard"], // overwrite client to make sure no inconsistence
+		// 5
+		f["assign device1 18th reqId to public"],
+		f["assign card id original ver no equal to db's to public"],
+		f["DeleteCard"], // actually delete the card to create the situation for 5
+		f["assign device1 19th reqId to public"],
+		f["assign card id original ver no equal to db's to public"],
+		f["assign card id original ver no greater than db's to public"],
+		f["UpdateCardV1"],
 		/////////////////////// single card CRUD ENDS /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+		f["print all dicText in db"],
+		f["SearchDicByText"],
 
 		// sync begins
 		// no device info on both
-		f["SyncEmptyCard"],
-		f["NewDeviceInfo"], // create a device info for device1
-		f["SyncEmptyCardNewDevice"],
-		f["SyncEmptyCard"],
-		f["insert cards in db for sync test"],
-		f["SyncWithCards"],
-		f["assign device2 uuid to public"],
-		f["SyncEmptyCardNewDevice2"],
+		// f["SyncEmptyCard"],
+		// f["NewDeviceInfo"], // create a device info for device1
+		// f["SyncEmptyCardNewDevice"],
+		// f["SyncEmptyCard"],
+		// f["insert cards in db for sync test"],
+		// f["SyncWithCards"],
+		// f["assign device2 uuid to public"],
+		// f["SyncEmptyCardNewDevice2"],
+
+		// f["remove all cards in db"],
+		// f["insert cards in db for sync test"],
 	}
 	RunOperationFlow(fTestFlow, m, p)
 

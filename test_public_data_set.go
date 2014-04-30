@@ -38,6 +38,11 @@ type publicDataSet struct {
 	SyncTestCardId6          string
 	SyncTestCardId7          string
 	SyncTestCardId8          string
+	TextToSearch             string
+	ParentIdInSearch         string
+	LastIdInSearch           string
+	SearchSortOption         string
+	SearchAscending          bool
 }
 
 ///////////TEST FUNC/////////////
@@ -193,6 +198,30 @@ func (p *publicDataSet) TestSync(m *MyMartini, reqBodyStruct *testView.ReqSync) 
 	return
 }
 
+func (p *publicDataSet) TestDicSearchByText(m *MyMartini, reqBodyStruct *testView.ReqDicText) (req *http.Request) {
+	reqBody, _ := json.MarshalIndent(reqBodyStruct, "", "	")
+	body := bytes.NewReader(reqBody)
+	url := "/dic/7/37/text/" + p.UserId
+	m.Post("/dic/:source_lang_code/:target_lang_code/text/:user_id", testView.GateKeeper(), testView.NonActivationBlocker(), testView.DicTextSearcher())
+	req, _ = http.NewRequest("POST", url, body)
+	req.Header.Set("Authorization", "Bearer "+p.AccessToken)
+	req.Header.Add("X-REMOLET-DEVICE-ID", p.Uuid)
+	os.Stdout.Write(reqBody)
+	return
+}
+
+func (p *publicDataSet) TestDicSearchById(m *MyMartini, reqBodyStruct *testView.ReqDicId) (req *http.Request) {
+	reqBody, _ := json.MarshalIndent(reqBodyStruct, "", "	")
+	body := bytes.NewReader(reqBody)
+	url := "/dic/7/37/id/" + p.UserId
+	m.Post("/dic/:source_lang_code/:target_lang_code/id/:user_id", testView.GateKeeper(), testView.NonActivationBlocker(), testView.DicTextSearcher())
+	req, _ = http.NewRequest("POST", url, body)
+	req.Header.Set("Authorization", "Bearer "+p.AccessToken)
+	req.Header.Add("X-REMOLET-DEVICE-ID", p.Uuid)
+	os.Stdout.Write(reqBody)
+	return
+}
+
 ///////////DATA MODIFICATION/////////////
 func (p *publicDataSet) SetPublicTokens(u *userX) {
 	fmt.Println("From user: ", u.UserNo)
@@ -289,7 +318,7 @@ func (p *publicDataSet) GetCardReqBodyStruct() *testView.ReqCard {
 			Translation: "感同身受",
 			Detail:      p.Detail,
 			SourceLang:  "English",
-			TargetLang:  "Chinese"},
+			TargetLang:  "简体中文"},
 		CardVersionNo: p.CardIdOriginalVerNo}
 }
 
@@ -317,108 +346,136 @@ func (p *publicDataSet) SetSyncTestCardsInDb() {
 	d1 := bson.NewObjectId()
 	p.SyncTestCardId1 = d1.Hex()
 	SyncTestCard1 := bson.M{
-		"context":      "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
-		"target":       "empathy",
-		"translation":  "感同身受",
-		"detail":       "11111",
-		"sourceLang":   "English",
-		"targetLang":   "Chinese",
-		"_id":          d1,
-		"versionNo":    2,
-		"belongTo":     bson.ObjectIdHex(p.UserId),
-		"lastModified": time.Now().UnixNano(),
-		"collectedAt":  time.Now().UnixNano(),
-		"isDeleted":    false}
+		"context":              "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
+		"target":               "empathy",
+		"translation":          "感同身受",
+		"detail":               "11111",
+		"sourceLang":           "English",
+		"targetLang":           "简体中文",
+		"_id":                  d1,
+		"versionNo":            2,
+		"belongTo":             bson.ObjectIdHex(p.UserId),
+		"lastModified":         time.Now().UnixNano(),
+		"collectedAt":          time.Now().UnixNano(),
+		"contextDicTextId":     "",
+		"detailDicTextId":      "",
+		"targetDicTextId":      "",
+		"translationDicTextId": "",
+		"isDeleted":            false}
 	d2 := bson.NewObjectId()
 	p.SyncTestCardId2 = d2.Hex()
 	SyncTestCard2 := bson.M{
-		"context":      "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
-		"target":       "empathy",
-		"translation":  "感同身受",
-		"detail":       "22222",
-		"sourceLang":   "English",
-		"targetLang":   "Chinese",
-		"_id":          d2,
-		"versionNo":    1,
-		"belongTo":     bson.ObjectIdHex(p.UserId),
-		"lastModified": time.Now().UnixNano(),
-		"collectedAt":  time.Now().UnixNano(),
-		"isDeleted":    false}
+		"context":              "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
+		"target":               "empathy",
+		"translation":          "感同身受",
+		"detail":               "22222",
+		"sourceLang":           "English",
+		"targetLang":           "简体中文",
+		"_id":                  d2,
+		"versionNo":            1,
+		"belongTo":             bson.ObjectIdHex(p.UserId),
+		"lastModified":         time.Now().UnixNano(),
+		"collectedAt":          time.Now().UnixNano(),
+		"contextDicTextId":     "",
+		"detailDicTextId":      "",
+		"targetDicTextId":      "",
+		"translationDicTextId": "",
+		"isDeleted":            false}
 	d3 := bson.NewObjectId()
 	p.SyncTestCardId3 = d3.Hex()
 	SyncTestCard3 := bson.M{
-		"context":      "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
-		"target":       "empathy",
-		"translation":  "感同身受",
-		"detail":       "33333",
-		"sourceLang":   "English",
-		"targetLang":   "Chinese",
-		"_id":          d3,
-		"versionNo":    1,
-		"belongTo":     bson.ObjectIdHex(p.UserId),
-		"lastModified": time.Now().UnixNano(),
-		"collectedAt":  time.Now().UnixNano(),
-		"isDeleted":    false}
+		"context":              "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
+		"target":               "empathy",
+		"translation":          "感同身受",
+		"detail":               "33333",
+		"sourceLang":           "English",
+		"targetLang":           "简体中文",
+		"_id":                  d3,
+		"versionNo":            1,
+		"belongTo":             bson.ObjectIdHex(p.UserId),
+		"lastModified":         time.Now().UnixNano(),
+		"collectedAt":          time.Now().UnixNano(),
+		"contextDicTextId":     "",
+		"detailDicTextId":      "",
+		"targetDicTextId":      "",
+		"translationDicTextId": "",
+		"isDeleted":            false}
 	d4 := bson.NewObjectId()
 	p.SyncTestCardId4 = d4.Hex()
 	SyncTestCard4 := bson.M{
-		"context":      "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
-		"target":       "empathy",
-		"translation":  "感同身受",
-		"detail":       "44444",
-		"sourceLang":   "English",
-		"targetLang":   "Chinese",
-		"_id":          d4,
-		"versionNo":    1,
-		"belongTo":     bson.ObjectIdHex(p.UserId),
-		"lastModified": time.Now().UnixNano(),
-		"collectedAt":  time.Now().UnixNano(),
-		"isDeleted":    false}
+		"context":              "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
+		"target":               "empathy",
+		"translation":          "感同身受",
+		"detail":               "44444",
+		"sourceLang":           "English",
+		"targetLang":           "简体中文",
+		"_id":                  d4,
+		"versionNo":            1,
+		"belongTo":             bson.ObjectIdHex(p.UserId),
+		"lastModified":         time.Now().UnixNano(),
+		"collectedAt":          time.Now().UnixNano(),
+		"contextDicTextId":     "",
+		"detailDicTextId":      "",
+		"targetDicTextId":      "",
+		"translationDicTextId": "",
+		"isDeleted":            false}
 	d5 := bson.NewObjectId()
 	p.SyncTestCardId5 = d5.Hex()
 	SyncTestCard5 := bson.M{
-		"context":      "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
-		"target":       "empathy",
-		"translation":  "感同身受",
-		"detail":       "55555",
-		"sourceLang":   "English",
-		"targetLang":   "Chinese",
-		"_id":          d5,
-		"versionNo":    2,
-		"belongTo":     bson.ObjectIdHex(p.UserId),
-		"lastModified": time.Now().UnixNano(),
-		"collectedAt":  time.Now().UnixNano(),
-		"isDeleted":    true}
+		"context":              "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
+		"target":               "empathy",
+		"translation":          "感同身受",
+		"detail":               "55555",
+		"sourceLang":           "English",
+		"targetLang":           "简体中文",
+		"_id":                  d5,
+		"versionNo":            2,
+		"belongTo":             bson.ObjectIdHex(p.UserId),
+		"lastModified":         time.Now().UnixNano(),
+		"collectedAt":          time.Now().UnixNano(),
+		"contextDicTextId":     "",
+		"detailDicTextId":      "",
+		"targetDicTextId":      "",
+		"translationDicTextId": "",
+		"isDeleted":            true}
 	d6 := bson.NewObjectId()
 	p.SyncTestCardId6 = d6.Hex()
 	SyncTestCard6 := bson.M{
-		"context":      "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
-		"target":       "empathy",
-		"translation":  "感同身受",
-		"detail":       "66666",
-		"sourceLang":   "English",
-		"targetLang":   "Chinese",
-		"_id":          d6,
-		"versionNo":    1,
-		"belongTo":     bson.ObjectIdHex(p.UserId),
-		"lastModified": time.Now().UnixNano(),
-		"collectedAt":  time.Now().UnixNano(),
-		"isDeleted":    true}
+		"context":              "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
+		"target":               "empathy",
+		"translation":          "感同身受",
+		"detail":               "66666",
+		"sourceLang":           "English",
+		"targetLang":           "简体中文",
+		"_id":                  d6,
+		"versionNo":            1,
+		"belongTo":             bson.ObjectIdHex(p.UserId),
+		"lastModified":         time.Now().UnixNano(),
+		"collectedAt":          time.Now().UnixNano(),
+		"contextDicTextId":     "",
+		"detailDicTextId":      "",
+		"targetDicTextId":      "",
+		"translationDicTextId": "",
+		"isDeleted":            true}
 	d7 := bson.NewObjectId()
 	p.SyncTestCardId7 = d7.Hex()
 	SyncTestCard7 := bson.M{
-		"context":      "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
-		"target":       "empathy",
-		"translation":  "感同身受",
-		"detail":       "77777",
-		"sourceLang":   "English",
-		"targetLang":   "Chinese",
-		"_id":          d7,
-		"versionNo":    1,
-		"belongTo":     bson.ObjectIdHex(p.UserId),
-		"lastModified": time.Now().UnixNano(),
-		"collectedAt":  time.Now().UnixNano(),
-		"isDeleted":    true}
+		"context":              "As designers, we must not forget that we design for the people. We must gain empathy and ride on the arc of modern design.",
+		"target":               "empathy",
+		"translation":          "感同身受",
+		"detail":               "77777",
+		"sourceLang":           "English",
+		"targetLang":           "简体中文",
+		"_id":                  d7,
+		"versionNo":            1,
+		"belongTo":             bson.ObjectIdHex(p.UserId),
+		"lastModified":         time.Now().UnixNano(),
+		"collectedAt":          time.Now().UnixNano(),
+		"contextDicTextId":     "",
+		"detailDicTextId":      "",
+		"targetDicTextId":      "",
+		"translationDicTextId": "",
+		"isDeleted":            true}
 	_ = s.DB("mylang").C("cards").Insert(SyncTestCard1, SyncTestCard2, SyncTestCard3, SyncTestCard4, SyncTestCard5, SyncTestCard6, SyncTestCard7)
 	defer s.Close()
 	fmt.Println("p.SyncTestCardId7: ", p.SyncTestCardId7)
@@ -436,6 +493,23 @@ func (p *publicDataSet) GetSyncReqBodyStructWithCards() *testView.ReqSync {
 			testView.CardsVerListElement{bson.ObjectIdHex(p.SyncTestCardId7), 2},
 			// testView.CardsVerListElement{p.SyncTestCardId8, 1},
 		}}
+}
+
+func (p *publicDataSet) GetDicSearchByTextReqBodyStruct() *testView.ReqDicText {
+	p.TextToSearch = "empathy"
+	p.SearchSortOption = "createdAt"
+	return &testView.ReqDicText{
+		WordsText:   p.TextToSearch,
+		SortOption:  p.SearchSortOption,
+		IsAscending: p.SearchAscending}
+}
+
+func (p *publicDataSet) GetDicSearchByIdReqBodyStruct() *testView.ReqDicId {
+	return &testView.ReqDicId{
+		ParentId:    bson.ObjectIdHex(p.ParentIdInSearch),
+		LastId:      bson.ObjectIdHex(p.LastIdInSearch),
+		SortOption:  p.SearchSortOption,
+		IsAscending: p.SearchAscending}
 }
 
 func (p *publicDataSet) GetActivationUrlCodeFromDb(u *userX) {
@@ -491,4 +565,19 @@ func (p *publicDataSet) ClearAllCardsInDb() {
 	p.CardIdOriginalVerNo = 0
 	p.CardIdDerived = ""
 	p.Detail = ""
+}
+
+func (p *publicDataSet) PrintAllDicTextInDb() {
+	session, err := mgo.Dial("mongodb://localhost:27017")
+	if err != nil {
+		panic(err)
+	}
+	s := session.Clone()
+	var d []testView.DicText
+	err = s.DB("mylang").C("dicTexts").Find(nil).All(&d)
+	if err != nil {
+		fmt.Println("dicText not got: ", err.Error())
+	}
+	fmt.Println("dicText in db: ", d)
+	defer s.Close()
 }

@@ -241,6 +241,7 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 			if err == nil {
 				// Card inserted as new card, return this card to client.
 				err = SetResBodyPart(v.FieldByName("Cards"), "Cards", reflect.ValueOf(r))
+				_ = ScanToFindAndUpdateEmptyTextId(db, bson.ObjectIdHex(params["user_id"]))
 			}
 		case OneCard:
 			var t CardInCommon
@@ -251,6 +252,7 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 				r, _, err = InsertNewCard(db, structFromReq, params)
 				if err == nil {
 					err = SetResBodyPart(v.FieldByName("Cards"), "Cards", reflect.ValueOf(r))
+					_ = ScanToFindAndUpdateEmptyTextId(db, bson.ObjectIdHex(params["user_id"]))
 				}
 			} else if err == nil {
 				var isUnique bool
@@ -286,6 +288,7 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 						r = append(r, t)
 						err = SetResBodyPart(v.FieldByName("Cards"), "Cards", reflect.ValueOf(r))
 					}
+					_ = ScanToFindAndUpdateEmptyTextId(db, bson.ObjectIdHex(params["user_id"]))
 				}
 			}
 			// Activating only changes email after user being activated. It goes through html, not here, either.
@@ -324,19 +327,13 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 								err = GetCardListDifference(db, cardListDB, x.FieldByName("CardList"), v.FieldByName("CardList"), v.FieldByName("CardToDelete"))
 								if err != nil {
 									fmt.Println("GetCardListDifference err: ", err.Error())
+									_ = ScanToFindAndUpdateEmptyTextId(db, bson.ObjectIdHex(params["user_id"]))
 								}
 							}
 						}
 					}
 				}
 			}
-		//case dict:
-		// For words only. Client posts WordsText to exchange its id and translation/target list.
-		// var r []DicTextInCommon
-		// err = db.C("cards").Find(criteria).Select(SelectDicInCommon).All(&r)
-		// if err == nil {
-
-		// }
 		default:
 			err = errors.New("Request not recogniized.")
 		}

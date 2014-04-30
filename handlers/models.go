@@ -30,12 +30,13 @@ func GetSelector(option int) (r bson.M) {
 			"versionNo": 1}
 	case SelectDicInCommon:
 		r = bson.M{
-			"_id":                   1,
-			"textType":              1,
-			"text":                  1,
-			"textLength":            1,
-			"createdAt":             1,
-			"childrenLastUpdatedAt": 1}
+			"_id":                          1,
+			"textType":                     1,
+			"text":                         1,
+			"textLength":                   1,
+			"noOfUsersPickedThisUpFromDic": 1,
+			"createdAt":                    1,
+			"childrenLastUpdatedAt":        1}
 	case SelectDeviceTokensInCommon:
 		r = bson.M{
 			"accessToken":  1,
@@ -145,11 +146,11 @@ type DeviceInfo struct {
 	RememberMe bool          `bson:"rememberMe" json:"rememberMe"`
 
 	LastModified int64 `bson:"lastModified" json:"lastModified"`
-	// Save search result for each tier and serve by pagination. No tier1 here since tier1 is just one words. Overwrite corresponding tier when new search is triggered by client. Meanwhile, clear up the sibling tiers if there is any. The result is sorted by the device`s sortOption stored.
+	// Save search result's last object's objectId for each tier and serve by pagination. No tier1 here since tier1 is just one words. Overwrite corresponding tier when new search is triggered by client. Meanwhile, clear up the sibling tiers if there is any. The result is sorted by the device`s sortOption stored.
 	// Change on these does not update lastModified in DeviceInfo.
-	DicTier2 []*DicTextInRes `bson:"dicTier2" json:"dicTier2"`
-	DicTier3 []*DicTextInRes `bson:"dicTier3" json:"dicTier3"`
-	DicTier4 []*DicTextInRes `bson:"dicTier4" json:"dicTier4"`
+	// DicTier2 bson.ObjectId `bson:"dicTier2" json:"dicTier2"`
+	// DicTier3 bson.ObjectId `bson:"dicTier3" json:"dicTier3"`
+	// DicTier4 bson.ObjectId `bson:"dicTier4" json:"dicTier4"`
 }
 
 // Server side only
@@ -208,18 +209,21 @@ type CardInCommon struct {
 }
 
 type Card struct {
-	Id bson.ObjectId `bson:"_id" json:"_id"`
-
-	Context      string        `bson:"context" json:"context"`
-	Detail       string        `bson:"detail" json:"detail"`
-	SourceLang   string        `bson:"sourceLang" json:"sourceLang"`
-	Target       string        `bson:"target" json:"target"`
-	TargetLang   string        `bson:"targetLang" json:"targetLang"`
-	Translation  string        `bson:"translation" json:"translation"`
-	VersionNo    int64         `bson:"versionNo" json:"versionNo"`
-	CollectedAt  int64         `bson:"collectedAt" json:"collectedAt"`
-	LastModified int64         `bson:"lastModified" json:"lastModified"`
-	BelongTo     bson.ObjectId `bson:"belongTo" json:"belongTo"`
+	Id                   bson.ObjectId `bson:"_id" json:"_id"`
+	SourceLang           string        `bson:"sourceLang" json:"sourceLang"`
+	TargetLang           string        `bson:"targetLang" json:"targetLang"`
+	Context              string        `bson:"context" json:"context"`
+	Detail               string        `bson:"detail" json:"detail"`
+	Target               string        `bson:"target" json:"target"`
+	Translation          string        `bson:"translation" json:"translation"`
+	ContextDicTextId     bson.ObjectId `bson:"contextDicTextId" json:"contextDicTextId"`
+	DetailDicTextId      bson.ObjectId `bson:"detailDicTextId" json:"detailDicTextId"`
+	TargetDicTextId      bson.ObjectId `bson:"targetDicTextId" json:"targetDicTextId"`
+	TranslationDicTextId bson.ObjectId `bson:"translationDicTextId" json:"translationDicTextId"`
+	VersionNo            int64         `bson:"versionNo" json:"versionNo"`
+	CollectedAt          int64         `bson:"collectedAt" json:"collectedAt"`
+	LastModified         int64         `bson:"lastModified" json:"lastModified"`
+	BelongTo             bson.ObjectId `bson:"belongTo" json:"belongTo"`
 
 	// Server side only
 	IsDeleted bool `bson:"isDeleted" json:"isDeleted"`
@@ -231,20 +235,23 @@ type DicTextInCommon struct {
 	TextType              int    `bson:"textType" json:"textType"`
 	Text                  string `bson:"text" json:"text"`
 	TextLength            int    `bson:"textLength" json:"textLength"`
+	NoOfUsersHavingThis   int64  `bson:"noOfUsersHavingThis" json:"noOfUsersHavingThis"`
 	CreatedAt             int64  `bson:"createdAt" json:"createdAt"`
 	ChildrenLastUpdatedAt int64  `bson:"childrenLastUpdatedAt" json:"childrenLastUpdatedAt"`
 }
 
 type DicText struct {
-	Id         bson.ObjectId `bson:"_id" json:"_id"`
-	SourceLang string        `bson:"sourceLang" json:"sourceLang"`
-	TargetLang string        `bson:"targetLang" json:"targetLang"`
+	Id             bson.ObjectId `bson:"_id" json:"_id"`
+	SourceLangCode int           `bson:"sourceLangCode" json:"sourceLangCode"`
+	TargetLangCode int           `bson:"targetLangCode" json:"targetLangCode"`
+	SourceLang     string        `bson:"sourceLang" json:"sourceLang"`
+	TargetLang     string        `bson:"targetLang" json:"targetLang"`
 	// 1: context, 2: target, 3: translation, 4: detail
-	TextType       int           `bson:"textType" json:"textType"`
-	Text           string        `bson:"text" json:"text"`
-	TextLength     int           `bson:"textLength" json:"textLength"`
-	BelongToParent bson.ObjectId `bson:"belongToParent" json:"belongToParent"`
-
+	TextType              int           `bson:"textType" json:"textType"`
+	Text                  string        `bson:"text" json:"text"`
+	TextLength            int           `bson:"textLength" json:"textLength"`
+	BelongToParent        bson.ObjectId `bson:"belongToParent" json:"belongToParent"`
+	NoOfUsersHavingThis   int64         `bson:"noOfUsersHavingThis" json:"noOfUsersHavingThis"`
 	IsDeleted             bool          `bson:"isDeleted" json:"isDeleted"`
 	IsHidden              bool          `bson:"isHidden" json:"isHidden"`
 	CreatedAt             int64         `bson:"createdAt" json:"createdAt"`
