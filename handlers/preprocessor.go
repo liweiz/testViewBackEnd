@@ -20,9 +20,9 @@ const (
 	RenewTokens
 	NewDeviceInfo
 	OneDeviceInfo
-	OneActivationEmail
+	// OneActivationEmail
 	OneActivationPage
-	OnePasswordResettingEmail
+	// OnePasswordResettingEmail
 	OnePasswordResettingPage
 	PasswordResetting
 	Sync
