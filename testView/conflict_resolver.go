@@ -121,33 +121,36 @@ func GetDefaultDeviceInfo(userId bson.ObjectId, deviceUUID string, db *mgo.Datab
 	err = db.C("deviceInfos").Find(bson.M{
 		"belongTo": userId}).All(&r)
 	if err == nil {
-		var temp DeviceInfoInCommon
-		temp, err = GetLatestUpdatedDeviceInfo(r)
-		if err == nil {
-			newId := bson.NewObjectId()
-			err = db.C("deviceInfos").Insert(bson.M{
-				// DeviceInfoInCommon
-				"_id":        newId,
-				"belongTo":   userId,
-				"deviceUUID": deviceUUID,
-				// These are set by users after a successful signup.
-				"sourceLang": temp.SourceLang,
-				"targetLang": temp.TargetLang,
-				"isLoggedIn": true,
-				"rememberMe": true,
-				"sortOption": temp.SortOption,
-
-				// Non DeviceInfoInCommon part
-				"lastModified": time.Now().UnixNano(),
-				"dicTier2":     "",
-				"dicTier3":     "",
-				"dicTier4":     ""})
+		if len(r) > 0 {
+			var temp DeviceInfoInCommon
+			temp, err = GetLatestUpdatedDeviceInfo(r)
 			if err == nil {
-				err = db.C("deviceInfos").Find(bson.M{"_id": newId}).Select(GetSelector(SelectDeviceInfoInCommon)).One(&info)
+				newId := bson.NewObjectId()
+				err = db.C("deviceInfos").Insert(bson.M{
+					// DeviceInfoInCommon
+					"_id":        newId,
+					"belongTo":   userId,
+					"deviceUUID": deviceUUID,
+					// These are set by users after a successful signup.
+					"sourceLang": temp.SourceLang,
+					"targetLang": temp.TargetLang,
+					"isLoggedIn": true,
+					"rememberMe": true,
+					"sortOption": temp.SortOption,
+
+					// Non DeviceInfoInCommon part
+					"lastModified": time.Now().UnixNano(),
+					"dicTier2":     "",
+					"dicTier3":     "",
+					"dicTier4":     ""})
+				if err == nil {
+					err = db.C("deviceInfos").Find(bson.M{"_id": newId}).Select(GetSelector(SelectDeviceInfoInCommon)).One(&info)
+				}
 			}
+		} else {
+			err = mgo.ErrNotFound
 		}
 	}
-
 	return
 }
 

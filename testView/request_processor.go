@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	// "path"
+	"os"
 	"reflect"
 	"strings"
 )
@@ -39,6 +40,8 @@ func ProcessedResponseGenerator(route int, setRequestProcessed bool) martini.Han
 			if err == nil {
 				// Response size, any usage???
 				_, err = rw.Write(j)
+				fmt.Println("code:", 200)
+				os.Stdout.Write(j)
 			}
 			if err != nil {
 				s = strings.Join([]string{"Failed to generate response, but request has been successfully processed by server.", err.Error()}, "=> ")

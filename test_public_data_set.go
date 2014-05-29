@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
-	"me/testView/handlers"
+	"me/testViewPKG/testView"
 	"net/http"
 	// "net/http/httputil"
 	"os"

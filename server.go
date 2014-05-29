@@ -5,7 +5,7 @@ import (
 	"github.com/go-martini/martini"
 	//"io"
 	"labix.org/v2/mgo"
-	"me/testView/handlers"
+	"me/testViewPKG/testView"
 	//"net/http"
 	//"os"
 )

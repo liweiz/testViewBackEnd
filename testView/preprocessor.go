@@ -5,10 +5,12 @@ import (
 	"errors"
 	"github.com/go-martini/martini"
 	// "io/ioutil"
+	"bytes"
 	"fmt"
 	"labix.org/v2/mgo/bson"
 	"log"
 	"net/http"
+	"os"
 	"reflect"
 )
 
@@ -189,6 +191,10 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 	default:
 		err = errors.New("Request not recognized.")
 	}
+	fmt.Println("request received:")
+	var myBuffer bytes.Buffer
+	_, _ = myBuffer.ReadFrom(req.Body)
+	os.Stdout.Write(myBuffer.Bytes())
 	return
 }
 
