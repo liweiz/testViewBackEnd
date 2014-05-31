@@ -105,7 +105,7 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 		// case dicTranslation:
 		// case dicDetail:
 		default:
-			err = errors.New("Request not recogniized.")
+			err = errors.New("Request not recognized.")
 		}
 	} else if m == "POST" {
 		switch route {
@@ -199,20 +199,34 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 		case NewDeviceInfo:
 			// The only case a new deviceInfo created by client is after signing in.
 			userId := bson.ObjectIdHex(params["user_id"])
-			err = EnsureDeviceInfoUniqueness(db, userId, x.FieldByName("DeviceUUID").String())
+			var deviceInfoIdHere bson.ObjectId
+			var dd DeviceInfo
+			dd, err = EnsureDeviceInfoUniqueness(db, userId, x.FieldByName("DeviceUUID").String())
 			if err == nil {
-				err = errors.New("DeviceInfo already exists, please update it if needed.")
+				// DeviceInfo already exists, please update it if needed.
+				err = db.C("deviceInfos").UpdateId(dd.Id, bson.M{
+					"$set": bson.M{
+						"lastModified": time.Now().UnixNano(),
+						"sortOption":   x.FieldByName("DeviceInfo").FieldByName("SortOption").String(),
+						"sourceLang":   x.FieldByName("DeviceInfo").FieldByName("SourceLang").String(),
+						"targetLang":   x.FieldByName("DeviceInfo").FieldByName("TargetLang").String()}})
+				if err == nil {
+					deviceInfoIdHere = dd.Id
+				}
 			} else if err == mgo.ErrNotFound {
 				var newId bson.ObjectId
 				newId, err = InsertNonDicDB(DeviceInfoNew, structFromReq, db, userId)
 				if err == nil {
-					var r DeviceInfoInCommon
-					err = db.C("deviceInfos").Find(bson.M{
-						"_id": newId}).Select(GetSelector(SelectDeviceInfoInCommon)).One(&r)
-					fmt.Println("DeviceInfoInCommon: ", r)
-					if err == nil {
-						err = SetResBodyPart(v.FieldByName("DeviceInfo"), "DeviceInfo", reflect.ValueOf(r))
-					}
+					deviceInfoIdHere = newId
+				}
+			}
+			if err == nil {
+				var r DeviceInfoInCommon
+				err = db.C("deviceInfos").Find(bson.M{
+					"_id": deviceInfoIdHere}).Select(GetSelector(SelectDeviceInfoInCommon)).One(&r)
+				fmt.Println("DeviceInfoInCommon: ", r)
+				if err == nil {
+					err = SetResBodyPart(v.FieldByName("DeviceInfo"), "DeviceInfo", reflect.ValueOf(r))
 				}
 			}
 		case OneDeviceInfo:
@@ -361,7 +375,7 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 				}
 			}
 		} else {
-			err = errors.New("Request not recogniized.")
+			err = errors.New("Request not recognized.")
 		}
 	}
 	return

@@ -109,8 +109,7 @@ func CheckCardUniqueness(db *mgo.Database, params martini.Params, cardValueInReq
 // }
 
 // Ensure only one deviceInfo exists for any user and deviceUUID pair.
-func EnsureDeviceInfoUniqueness(db *mgo.Database, userId bson.ObjectId, aUUID string) (err error) {
-	var d DeviceInfo
+func EnsureDeviceInfoUniqueness(db *mgo.Database, userId bson.ObjectId, aUUID string) (d DeviceInfo, err error) {
 	err = db.C("deviceInfos").Find(bson.M{"belongTo": userId, "deviceUUID": aUUID}).One(&d)
 	return
 }
