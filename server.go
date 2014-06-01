@@ -78,10 +78,10 @@ func main() {
 	m.Post("/users/forgotpassword", testView.RequestPreprocessor(testView.ForgotPassword), testView.ProcessedResponseGenerator(testView.ForgotPassword, false))
 	// User signs in. signIn
 	// Tested!!!
-	m.Post("/users/signin", testView.GateKeeper(), testView.RequestPreprocessor(testView.SignIn), testView.ProcessedResponseGenerator(testView.SignIn, false))
+	m.Post("/users/signin", testView.GateKeeper(), testView.ProcessedSignUpOrInResponseGenerator(testView.SignIn))
 	// Sign up a new user. signUp
 	// Tested!!!
-	m.Post("/users", testView.RequestPreprocessor(testView.SignUp), testView.ProcessedResponseGenerator(testView.SignUp, false))
+	m.Post("/users", testView.ProcessedSignUpOrInResponseGenerator(testView.SignUp))
 
 	// Get a card. oneCard
 	//m.Get("/users/:user_id/cards/:card_id")

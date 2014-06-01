@@ -15,6 +15,8 @@ import (
 	"time"
 )
 
+// X-REMOLET-DEVICE-ID is the header field name in request for deviceUUID storage
+
 // GateKeeper is not needed for signUp.
 func GateKeeper() martini.Handler {
 	return func(db *mgo.Database, r *http.Request, rw http.ResponseWriter, logger *log.Logger, params martini.Params) {

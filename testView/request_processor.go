@@ -14,6 +14,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"time"
 )
 
 func ProcessedResponseGenerator(route int, setRequestProcessed bool) martini.Handler {
@@ -134,51 +135,51 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 
 			So a new user's deviceInfo is created on client by user and stored to db. A existing user's deviceInfo is delivered by sync process or providing the list for client to choose. When there is only one existing deviceInfo on server, send this to client.
 		*/
-		case SignUp:
-			var aUser User
-			// Check if already in use
-			err = db.C("users").Find(criteria).One(&aUser)
-			if err == mgo.ErrNotFound {
-				fmt.Println("existing user not found")
-				// Reset err = nil
-				err = nil
-				// Create a new user
-				var newId bson.ObjectId
-				newId, err = InsertNonDicDB(UserNew, structFromReq, db, "")
-				if err == nil {
-					// Get and put the new user to response body.
-					var r UserInCommon
-					err = db.C("users").Find(bson.M{
-						"_id": newId}).Select(GetSelector(SelectUserInCommon)).One(&r)
-					if err == nil {
-						err = SetResBodyPart(v.FieldByName("User"), "User", reflect.ValueOf(r))
-						if err == nil {
-							// Proceed to tokens
-							var r1 TokensInCommon
-							r1, err = SetGetDeviceTokens(r.Id, structFromReq, db)
-							if err == nil {
-								err = SetResBodyPart(v.FieldByName("Tokens"), "Tokens", reflect.ValueOf(r1))
-							}
-						}
-					}
-				}
-			} else if err == nil {
-				err = errors.New("User already exists.")
-			}
-		case SignIn:
-			var r UserInCommon
-			err = db.C("users").Find(criteria).Select(GetSelector(SelectUserInCommon)).One(&r)
-			if err == nil {
-				err = SetResBodyPart(v.FieldByName("User"), "User", reflect.ValueOf(r))
-				if err == nil {
-					// Proceed to tokens, everytime signIn from a client, tokens have to be refreshed.
-					var r1 TokensInCommon
-					r1, err = SetGetDeviceTokens(r.Id, structFromReq, db)
-					if err == nil {
-						err = SetResBodyPart(v.FieldByName("Tokens"), "Tokens", reflect.ValueOf(r1))
-					}
-				}
-			}
+		// case SignUp:
+		// 	var aUser User
+		// 	// Check if already in use
+		// 	err = db.C("users").Find(criteria).One(&aUser)
+		// 	if err == mgo.ErrNotFound {
+		// 		fmt.Println("existing user not found")
+		// 		// Reset err = nil
+		// 		err = nil
+		// 		// Create a new user
+		// 		var newId bson.ObjectId
+		// 		newId, err = InsertNonDicDB(UserNew, structFromReq, db, "")
+		// 		if err == nil {
+		// 			// Get and put the new user to response body.
+		// 			var r UserInCommon
+		// 			err = db.C("users").Find(bson.M{
+		// 				"_id": newId}).Select(GetSelector(SelectUserInCommon)).One(&r)
+		// 			if err == nil {
+		// 				err = SetResBodyPart(v.FieldByName("User"), "User", reflect.ValueOf(r))
+		// 				if err == nil {
+		// 					// Proceed to tokens
+		// 					var r1 TokensInCommon
+		// 					r1, err = SetGetDeviceTokens(r.Id, structFromReq, db)
+		// 					if err == nil {
+		// 						err = SetResBodyPart(v.FieldByName("Tokens"), "Tokens", reflect.ValueOf(r1))
+		// 					}
+		// 				}
+		// 			}
+		// 		}
+		// 	} else if err == nil {
+		// 		err = errors.New("User already exists.")
+		// 	}
+		// case SignIn:
+		// 	var r UserInCommon
+		// 	err = db.C("users").Find(criteria).Select(GetSelector(SelectUserInCommon)).One(&r)
+		// 	if err == nil {
+		// 		err = SetResBodyPart(v.FieldByName("User"), "User", reflect.ValueOf(r))
+		// 		if err == nil {
+		// 			// Proceed to tokens, everytime signIn from a client, tokens have to be refreshed.
+		// 			var r1 TokensInCommon
+		// 			r1, err = SetGetDeviceTokens(r.Id, structFromReq, db)
+		// 			if err == nil {
+		// 				err = SetResBodyPart(v.FieldByName("Tokens"), "Tokens", reflect.ValueOf(r1))
+		// 			}
+		// 		}
+		// 	}
 		case ForgotPassword:
 			var aUser User
 			err = db.C("users").Find(criteria).One(&aUser)

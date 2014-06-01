@@ -48,41 +48,41 @@ func PreprocessRequest(route int, req *http.Request, params martini.Params, ctx 
 	// Get request body and criteria for record(s) searching
 	switch route {
 	// Sign up
-	case SignUp:
-		// Create a new user
-		// No sync starts from client after signing up successfully. User choose the lanuage pair and send the newly created deviceInfoInCommon from client.
-		if m == "POST" {
-			reqStruct := &ReqSignUpOrIn{}
-			resStruct := &ResSignUpOrIn{}
-			err = GetStructFromReq(req, reqStruct)
-			if err == nil {
-				if len(reqStruct.Password) < 6 {
-					err = errors.New("incorrect password format.")
-				} else {
-					c := bson.M{
-						"email": reqStruct.Email}
-					PrepareVehicle(ctx, reqStruct, resStruct, c, "", "")
-				}
-			}
-		}
-	case SignIn:
-		if m == "POST" {
-			// Use martini.Context here as a vehicle to deliver tokens between tokens issued by token server and request_handler.
-			// client starts sync right after signing in successfully. If no corresponding deviceInfo on server, get the default deviceInfo with GetDefaultDeviceInfo.
-			reqStruct := &ReqSignUpOrIn{}
-			resStruct := &ResSignUpOrIn{}
-			err = GetStructFromReq(req, reqStruct)
-			if err == nil {
-				u, err := GetAuthInHeader(req)
-				reqStruct.Email = u.Email
-				reqStruct.Password = u.Password
-				if err == nil {
-					c := bson.M{
-						"email": reqStruct.Email}
-					PrepareVehicle(ctx, reqStruct, resStruct, c, "", "")
-				}
-			}
-		}
+	// case SignUp:
+	// Create a new user
+	// No sync starts from client after signing up successfully. User choose the lanuage pair and send the newly created deviceInfoInCommon from client.
+	// 	if m == "POST" {
+	// 		// reqStruct := &ReqSignUpOrIn{}
+	// 		resStruct := &ResSignUpOrIn{}
+	// 		// err = GetStructFromReq(req, reqStruct)
+	// 		if err == nil {
+	// 			if len(reqStruct.Password) < 6 {
+	// 				err = errors.New("incorrect password format.")
+	// 			} else {
+	// 				c := bson.M{
+	// 					"email": reqStruct.Email}
+	// 				PrepareVehicle(ctx, reqStruct, resStruct, c, "", "")
+	// 			}
+	// 		}
+	// 	}
+	// case SignIn:
+	// 	if m == "POST" {
+	// Use martini.Context here as a vehicle to deliver tokens between tokens issued by token server and request_handler.
+	// client starts sync right after signing in successfully. If no corresponding deviceInfo on server, get the default deviceInfo with GetDefaultDeviceInfo.
+	// 	reqStruct := &ReqSignUpOrIn{}
+	// 	resStruct := &ResSignUpOrIn{}
+	// 	err = GetStructFromReq(req, reqStruct)
+	// 	if err == nil {
+	// 		u, err := GetAuthInHeader(req)
+	// 		reqStruct.Email = u.Email
+	// 		reqStruct.Password = u.Password
+	// 		if err == nil {
+	// 			c := bson.M{
+	// 				"email": reqStruct.Email}
+	// 			PrepareVehicle(ctx, reqStruct, resStruct, c, "", "")
+	// 		}
+	// 	}
+	// }
 	case ForgotPassword:
 		if m == "POST" {
 			reqStruct := &ReqForgotPassword{}
