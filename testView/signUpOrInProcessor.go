@@ -1,15 +1,18 @@
 package testView
 
 import (
+	"code.google.com/p/go.crypto/bcrypt"
+	"encoding/json"
 	"errors"
-	// "fmt"
+	"fmt"
 	"github.com/go-martini/martini"
 	"github.com/twinj/uuid"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"log"
 	"net/http"
-	"reflect"
+	"os"
+	"strings"
 	"time"
 )
 
@@ -18,9 +21,9 @@ func ProcessedSignUpOrInResponseGenerator(route int) martini.Handler {
 		var result ResSignUpOrIn
 		var err error
 		if route == SignUp {
-			result, err = signUpProcessor(db, logger, req, rw)
+			result, err = signUpProcessor(db, logger, req)
 		} else if route == SignIn {
-			result, err = signInProcessor(db, logger, req, rw)
+			result, err = signInProcessor(db, logger, req)
 		} else {
 			err = errors.New("Invalid signUp signIn type.")
 		}
@@ -29,7 +32,7 @@ func ProcessedSignUpOrInResponseGenerator(route int) martini.Handler {
 			// Send response.
 			rw.Header().Set("Content-Type", "application/json")
 			var j []byte
-			j, err = json.Marshal(reflect.ValueOf(result))
+			j, err = json.Marshal(result)
 			if err == nil {
 				// Response size, any usage???
 				_, err = rw.Write(j)
@@ -54,7 +57,7 @@ func ProcessedSignUpOrInResponseGenerator(route int) martini.Handler {
 }
 
 // Only requests that pass the gateKeeper are processed here. This indicates a not found err here means user not activated.
-func signUpProcessor(db *mgo.Database, logger *log.Logger, r *http.Request, rw http.ResponseWriter) (result ResSignUpOrIn, err error) {
+func signUpProcessor(db *mgo.Database, logger *log.Logger, r *http.Request) (result ResSignUpOrIn, err error) {
 	a, err := GetAuthInHeader(r)
 	if err == nil {
 		if len(a.Password) < 6 || len(a.Password) > 20 {
@@ -75,7 +78,7 @@ func signUpProcessor(db *mgo.Database, logger *log.Logger, r *http.Request, rw h
 				var hashedPassword []byte
 				hashedPassword, err = bcrypt.GenerateFromPassword([]byte(a.Password), bcrypt.DefaultCost)
 				if err == nil {
-					docToSave = bson.M{
+					docToSave := bson.M{
 						// UserInCommon
 						"activated": false,
 						"email":     a.Email,
@@ -117,9 +120,10 @@ func signUpProcessor(db *mgo.Database, logger *log.Logger, r *http.Request, rw h
 			}
 		}
 	}
+	return
 }
 
-func signInProcessor(db *mgo.Database, logger *log.Logger, r *http.Request, rw http.ResponseWriter) (result ResSignUpOrIn, err error) {
+func signInProcessor(db *mgo.Database, logger *log.Logger, r *http.Request) (result ResSignUpOrIn, err error) {
 	a, err := GetAuthInHeader(r)
 	if err == nil {
 		var rr UserInCommon
@@ -139,4 +143,5 @@ func signInProcessor(db *mgo.Database, logger *log.Logger, r *http.Request, rw h
 			}
 		}
 	}
+	return
 }

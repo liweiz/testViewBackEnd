@@ -4,7 +4,7 @@ import (
 	"code.google.com/p/go.crypto/bcrypt"
 	"encoding/base64"
 	"errors"
-	// "fmt"
+	"fmt"
 	"github.com/go-martini/martini"
 	"github.com/twinj/uuid"
 	"labix.org/v2/mgo"
@@ -91,6 +91,7 @@ func MatchPrimaryAuth(auth *AuthInHeader, db *mgo.Database, params martini.Param
 	}
 	if auth.AuthType == "Bearer" {
 		var myDeviceTokens DeviceTokens
+		fmt.Println("accessToken: ", auth.AccessToken, " belongTo: ", params["user_id"], " deviceUUID: ", r.Header.Get("X-REMOLET-DEVICE-ID"))
 		err = db.C("deviceTokens").Find(bson.M{"accessToken": auth.AccessToken, "belongTo": bson.ObjectIdHex(params["user_id"]), "deviceUUID": r.Header.Get("X-REMOLET-DEVICE-ID")}).One(&myDeviceTokens)
 		if err == mgo.ErrNotFound {
 			err = errors.New("No such token and user pair found.")
@@ -119,10 +120,10 @@ func CheckTokenExpiration(d *DeviceTokens) (isExpired bool) {
 // Return authorization header data
 func GetAuthInHeader(r *http.Request) (a *AuthInHeader, err error) {
 	auth := r.Header.Get("Authorization")
+	var b []byte
 	if auth != "" {
 		s := strings.SplitN(auth, " ", 2)
 		if s[0] == "Basic" {
-			var b []byte
 			b, err = base64.StdEncoding.DecodeString(s[1])
 			if err == nil {
 				pair := strings.SplitN(string(b), ":", 2)
@@ -132,12 +133,16 @@ func GetAuthInHeader(r *http.Request) (a *AuthInHeader, err error) {
 				}
 			}
 		} else if s[0] == "Bearer" {
-			a = &AuthInHeader{AuthType: s[0], AccessToken: s[1]}
-			return
+			b, err = base64.StdEncoding.DecodeString(s[1])
+			if err == nil {
+				a = &AuthInHeader{AuthType: s[0], AccessToken: string(b)}
+				return
+			}
 		}
 	}
 	if err == nil {
 		err = errors.New("Invalid authorization header")
+		fmt.Println("Invalid authorization header: ", auth)
 	}
 	return
 }
