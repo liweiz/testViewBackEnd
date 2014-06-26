@@ -18,6 +18,7 @@ import (
 const (
 	SignUp = iota
 	SignIn
+	OneUser
 	ForgotPassword
 	RenewTokens
 	NewDeviceInfo

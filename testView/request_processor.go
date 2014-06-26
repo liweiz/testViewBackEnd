@@ -102,7 +102,15 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 			if err == nil {
 				err = SetResBodyPart(v, "DeviceInfo", reflect.ValueOf(resultDeviceInfo))
 			}
-
+		case OneUser:
+			var resultUser UserInCommon
+			resStruct = ResUser{}
+			err = db.C("users").Find(bson.M{
+				"_id": bson.ObjectIdHex(params["user_id"])}).Select(GetSelector(SelectUserInCommon)).One(&resultUser)
+			if err == nil {
+				resStruct.User = resultUser
+				err = SetResBodyPart(reflect.ValueOf(resStruct), "User", reflect.ValueOf(resultUser))
+			}
 		// case dicTranslation:
 		// case dicDetail:
 		default:

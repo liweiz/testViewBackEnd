@@ -56,13 +56,10 @@ func main() {
 
 	m := My()
 	// Exchange for a new set of tokens. renewTokens
-	// Tested!!!
 	m.Post("/users/:user_id/tokens", testView.GateKeeperExchange(), testView.RequestPreprocessor(testView.RenewTokens), testView.ProcessedResponseGenerator(testView.RenewTokens, false))
 	// Update a user's device settings, e.g., language pair/sort option. OneDeviceInfoLang
-	// Tested!!!
 	m.Post("/users/:user_id/deviceinfos/:device_id", testView.GateKeeper(), testView.RequestPreprocessor(testView.OneDeviceInfo), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.OneDeviceInfo, true))
 	// Create a new deviceInfo
-	// Tested!!!
 	m.Post("/users/:user_id/deviceinfos", testView.GateKeeper(), testView.NonActivationBlocker(), testView.RequestPreprocessor(testView.NewDeviceInfo), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.NewDeviceInfo, true))
 	// Sync cards and user. sync. No request id needed for sync. Everytime a sync request received by server, server responses and client take the result to decide what to do next.
 	m.Post("/users/:user_id/sync", testView.GateKeeper(), testView.NonActivationBlocker(), testView.RequestPreprocessor(testView.Sync), testView.ProcessedResponseGenerator(testView.Sync, false))
@@ -71,31 +68,26 @@ func main() {
 	// Create a new card. newCard
 	m.Post("/users/:user_id/cards", testView.GateKeeper(), testView.NonActivationBlocker(), testView.RequestPreprocessor(testView.NewCard), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.NewCard, true))
 	// Change a user's password.
-	// Tested
 	m.Post("/users/:user_id/password/:password_resetting_code", testView.UrlCodeChecker(), testView.RequestPreprocessor(testView.PasswordResetting), testView.ProcessedResponseGenerator(testView.PasswordResetting, false))
 	// Send an email with url to change a user's password in the case of forgot-password.
-	// Tested!!!
 	m.Post("/users/forgotpassword", testView.RequestPreprocessor(testView.ForgotPassword), testView.ProcessedResponseGenerator(testView.ForgotPassword, false))
 	// User signs in. signIn
-	// Tested!!!
 	m.Post("/users/signin", testView.GateKeeper(), testView.ProcessedSignUpOrInResponseGenerator(testView.SignIn))
 	// Sign up a new user. signUp
-	// Tested!!!
 	m.Post("/users", testView.ProcessedSignUpOrInResponseGenerator(testView.SignUp))
 
 	// Get a card. oneCard
 	//m.Get("/users/:user_id/cards/:card_id")
 	// Activate a user. activation
-	// Tested!!!
 	m.Get("/users/:user_id/activation/:activation_code", testView.WebPageServer(testView.PageForActivation))
 	// Send an email with url to activate a user.
-	// Tested!!!
 	m.Get("/users/:user_id/activation", testView.GateKeeper(), testView.EmailSender(testView.EmailForActivation))
 	// Serve the webpage to reset a user's password. passwordResetting
 	m.Get("/users/:user_id/password/:password_resetting_code", testView.WebPageServer(testView.PageForPasswordResetting))
 	// Send an email with url to change a user's password.
-	// Tested!!!
 	m.Get("/users/:user_id/password", testView.GateKeeper(), testView.EmailSender(testView.EmailForPasswordResetting))
+	// Get user
+	m.Get("/users/:user_id", testView.GateKeeper(), testView.ProcessedResponseGenerator(testView.OneUser, false))
 
 	// Delete a card. oneCard
 	m.Delete("/users/:user_id/cards/:card_id", testView.GateKeeper(), testView.NonActivationBlocker(), testView.RequestPreprocessor(testView.OneCard), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.OneCard, true))
