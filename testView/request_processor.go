@@ -104,7 +104,7 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 			}
 		case OneUser:
 			var resultUser UserInCommon
-			resStruct = ResUser{}
+			resStruct := ResUser{}
 			err = db.C("users").Find(bson.M{
 				"_id": bson.ObjectIdHex(params["user_id"])}).Select(GetSelector(SelectUserInCommon)).One(&resultUser)
 			if err == nil {
