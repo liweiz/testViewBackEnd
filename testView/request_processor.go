@@ -121,17 +121,18 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 		/*
 			SignUp flow:
 			1. Client sends email and password to server
-			2. Create user in db if everything's ok. Otherwise, return error message
+			2. Create user in db if everything's ok. Otherwise, return error message. Send the activation email right away.
 			3.1 Client does not receive response, while server has successfully processed the request. User will have to sign in.
-			3.2 Client receives the user, lets the user set languagePair and sends it as deviceInfo to server.
-			4.1 The deviceInfo created on client is not processed successfully by server (such as request not received), follow steps in deviceInfo initialization flow on each client.
-			4.2 Server creates deviceInfo in db if everything's ok. Otherwise, return error message.
+			3.2 Client receives the user, let the user activate throught the link in activation email.
+			4. After activation, let the user set languagePair and sends it as deviceInfo to server.
+			5.1 The deviceInfo created on client is not processed successfully by server (such as request not received), follow steps in deviceInfo initialization flow on each client.
+			5.2 Server creates deviceInfo in db if everything's ok. Otherwise, return error message.
 
 			SignIn flow:
 			1. Client sends email and password to server
-			2. Get user in db if everything's ok. Otherwise, return error message.
-			2.1 No previous data on client found. Start sync process. If no deviceInfo on client, use the default one on server.
-			2.2 Previous data on client. Start sync process.
+			2. Get user in db if everything's ok. Otherwise, return error message. If user is not activated, client will have to activate before being able to do anything.
+			3.1 No previous data on client found. Start sync process. If no deviceInfo on client, use the default one on server.
+			3.2 Previous data on client. Start sync process.
 
 			DeviceInfo initialization flow on each client
 			This is for getting the deviceInfo the first time on each client for a given account. It's either triggered by user creating a new one on client and posting it to server or nothing on client and a sync request sent to get it.
