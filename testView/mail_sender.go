@@ -57,7 +57,7 @@ func SendEmail(emailCategory int, db *mgo.Database, req *http.Request, params ma
 	if err == nil {
 		switch emailCategory {
 		case EmailForActivation:
-			// Send an email with the activation link. E.g., http://www.xxx.com/:user_id/activaation/:activation_code
+			// Send an email with the activation link. E.g., http://www.xxx.com/users/:user_id/activation/:activation_code
 			uniqueUrl := path.Join(req.URL.String(), aUser.ActivationUrlCode)
 			err = GenerateEmail(emailCategory, uniqueUrl, aUser.Email)
 		case EmailForPasswordResetting:
