@@ -101,6 +101,10 @@ func signUpProcessor(db *mgo.Database, logger *log.Logger, r *http.Request) (res
 						err = db.C("users").Find(bson.M{
 							"_id": newId}).Select(GetSelector(SelectUserInCommon)).One(&rr)
 						if err == nil {
+							// Send activation email after user is successfully created on server.
+							uniqueUrl := path.Join(r.URL.String(), newId.String(), uniqueUrlCode)
+							// Ignore potential error for sending activation email here. In case it fails and user does not received the mail, user can trigger sending the mail later.
+							_ = GenerateEmail(EmailForActivation, uniqueUrl, a.Email)
 							result.User = rr
 							// fake a structFromReq: &ReqSignUpOrIn{}
 							s := &ReqSignUpOrIn{}
