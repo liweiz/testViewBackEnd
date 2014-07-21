@@ -9,14 +9,12 @@ import (
 // No use, coz they can be stored in Authorization header.
 // This is for revised signUp process.
 type ReqSignUp struct {
-	Email      string `json:"email"`
-	Password   string `json:"password"`
 	DeviceUUID string `json:"deviceUUID"`
 	SourceLang string `bson:"sourceLang" json:"sourceLang"`
 	TargetLang string `bson:"targetLang" json:"targetLang"`
 }
 
-// At this moment, it is only used for signIn
+// It is only used for func SetGetDeviceTokens(userId bson.ObjectId, structFromReq interface{}, db *mgo.Database) (tokens TokensInCommon, err error), coz these three are all stored in headers of request instead of json body.
 type ReqSignUpOrIn struct {
 	Email      string `json:"email"`
 	Password   string `json:"password"`

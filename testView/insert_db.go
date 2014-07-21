@@ -114,10 +114,12 @@ func PrepareNewNonDicDocDB(defaultDocType int, structFromReq interface{}, userId
 		if err == nil {
 			docToSave = bson.M{
 				// UserInCommon
-				"activated": false,
-				"email":     d.FieldByName("Email").String(),
-				"_id":       newId,
-				"versionNo": 1,
+				"activated":  false,
+				"email":      d.FieldByName("Email").String(),
+				"_id":        newId,
+				"versionNo":  1,
+				"sourceLang": d.FieldByName("SourceLang").String(),
+				"targetLang": d.FieldByName("TargetLang").String(),
 
 				//Non UserInCommon part
 				"lastModified":      time.Now().UnixNano(),

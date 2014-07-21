@@ -24,10 +24,12 @@ func GetSelector(option int) (r bson.M) {
 	switch option {
 	case SelectUserInCommon:
 		r = bson.M{
-			"activated": 1,
-			"email":     1,
-			"_id":       1,
-			"versionNo": 1}
+			"activated":  1,
+			"email":      1,
+			"_id":        1,
+			"versionNo":  1,
+			"sourceLang": 1,
+			"targetLang": 1}
 	case SelectDicInCommon:
 		r = bson.M{
 			"_id":                          1,
