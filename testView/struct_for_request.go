@@ -7,6 +7,16 @@ import (
 // Only non-GET requests come with RequestId since nothing is changed with a GET request.
 
 // No use, coz they can be stored in Authorization header.
+// This is for revised signUp process.
+type ReqSignUp struct {
+	Email      string `json:"email"`
+	Password   string `json:"password"`
+	DeviceUUID string `json:"deviceUUID"`
+	SourceLang string `bson:"sourceLang" json:"sourceLang"`
+	TargetLang string `bson:"targetLang" json:"targetLang"`
+}
+
+// At this moment, it is only used for signIn
 type ReqSignUpOrIn struct {
 	Email      string `json:"email"`
 	Password   string `json:"password"`

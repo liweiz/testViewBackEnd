@@ -12,6 +12,10 @@ type CardToDeleteInRes struct {
 type ResSignUpOrIn struct {
 	User   UserInCommon   `json:"user"`
 	Tokens TokensInCommon `json:"tokens"`
+
+	// Add lang pair here due to no deviceInfo for now
+	SourceLang string `bson:"sourceLang" json:"sourceLang"`
+	TargetLang string `bson:"targetLang" json:"targetLang"`
 }
 
 // RequestVersionNo is used to solve the online/offline sync issue. Tokens is an exception since there is no need to sync tokens, only getting new tokens is needed. Therefore, VersionNo is not necessary here, either.

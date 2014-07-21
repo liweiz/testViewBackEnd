@@ -55,10 +55,12 @@ func GetSelector(option int) (r bson.M) {
 }
 
 type UserInCommon struct {
-	Activated bool          `bson:"activated" json:"activated"`
-	Email     string        `bson:"email" json:"email"`
-	Id        bson.ObjectId `bson:"_id" json:"_id"`
-	VersionNo int64         `bson:"versionNo" json:"versionNo"`
+	Activated  bool          `bson:"activated" json:"activated"`
+	Email      string        `bson:"email" json:"email"`
+	Id         bson.ObjectId `bson:"_id" json:"_id"`
+	VersionNo  int64         `bson:"versionNo" json:"versionNo"`
+	SourceLang string        `bson:"sourceLang" json:"sourceLang"`
+	TargetLang string        `bson:"targetLang" json:"targetLang"`
 }
 
 type PasswordResettingUrlCodePair struct {
@@ -71,6 +73,10 @@ type User struct {
 	Email     string        `bson:"email" json:"email"`
 	Id        bson.ObjectId `bson:"_id" json:"_id"`
 	VersionNo int64         `bson:"versionNo" json:"versionNo"`
+
+	// Add lang pair to User instead of deviceInfo to restrict each user can only have one lang pair. So we removed the multi lang pair function for one user to reduce the chance that the incorrect lang pair set to card. By abandoning deviceInfo, we also removed the sort option sync and other device specific settings. User always gets default sort option when first login occurs, and manual change has to be done to change the settings. If one user wants to have different lang pair, another account will be needed in this case.
+	SourceLang string `bson:"sourceLang" json:"sourceLang"`
+	TargetLang string `bson:"targetLang" json:"targetLang"`
 
 	// Server side only
 	LastModified      int64  `bson:"lastModified" json:"lastModified"`
