@@ -80,7 +80,7 @@ func signUpProcessor(db *mgo.Database, logger *log.Logger, r *http.Request) (res
 				var hashedPassword []byte
 				hashedPassword, err = bcrypt.GenerateFromPassword([]byte(a.Password), bcrypt.DefaultCost)
 				if err == nil {
-					reqStruct := &ReqSignUpOrIn{}
+					reqStruct := &ReqSignUp{}
 					err = GetStructFromReq(r, reqStruct)
 					if err == nil {
 						docToSave := bson.M{
