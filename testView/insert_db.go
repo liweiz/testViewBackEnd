@@ -118,6 +118,7 @@ func PrepareNewNonDicDocDB(defaultDocType int, structFromReq interface{}, userId
 				"email":      d.FieldByName("Email").String(),
 				"_id":        newId,
 				"versionNo":  1,
+				"isSharing":  false,
 				"sourceLang": d.FieldByName("SourceLang").String(),
 				"targetLang": d.FieldByName("TargetLang").String(),
 

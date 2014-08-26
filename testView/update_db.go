@@ -14,6 +14,7 @@ import (
 const (
 	CardUpdate int = iota
 	UserUpdateActivation
+	UserUpdateIsSharing
 	UserUpdateEmail
 	UserAddPasswordUrlCode
 	UserRemovePasswordUrlCodeRoutinely
@@ -98,6 +99,13 @@ func PrepareUpdateNonDicDocDB(defaultDocType int, structFromReq interface{}) (do
 			"$set": bson.M{
 				"lastModified": time.Now().UnixNano(),
 				"activated":    true},
+			"$inc": bson.M{
+				"versionNo": 1}}
+	case UserUpdateIsSharing:
+		docToSave = bson.M{
+			"$set": bson.M{
+				"lastModified": time.Now().UnixNano(),
+				"isSharing":    true},
 			"$inc": bson.M{
 				"versionNo": 1}}
 	case UserUpdateEmail:
