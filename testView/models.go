@@ -28,6 +28,7 @@ func GetSelector(option int) (r bson.M) {
 			"email":      1,
 			"_id":        1,
 			"versionNo":  1,
+			"isSharing":  1,
 			"sourceLang": 1,
 			"targetLang": 1}
 	case SelectDicInCommon:
@@ -61,6 +62,7 @@ type UserInCommon struct {
 	Email      string        `bson:"email" json:"email"`
 	Id         bson.ObjectId `bson:"_id" json:"_id"`
 	VersionNo  int64         `bson:"versionNo" json:"versionNo"`
+	IsSharing  bool          `bson:"isSharing" json:"isSharing"`
 	SourceLang string        `bson:"sourceLang" json:"sourceLang"`
 	TargetLang string        `bson:"targetLang" json:"targetLang"`
 }
@@ -75,6 +77,7 @@ type User struct {
 	Email     string        `bson:"email" json:"email"`
 	Id        bson.ObjectId `bson:"_id" json:"_id"`
 	VersionNo int64         `bson:"versionNo" json:"versionNo"`
+	IsSharing bool          `bson:"isSharing" json:"isSharing"`
 
 	// Add lang pair to User instead of deviceInfo to restrict each user can only have one lang pair. So we removed the multi lang pair function for one user to reduce the chance that the incorrect lang pair set to card. By abandoning deviceInfo, we also removed the sort option sync and other device specific settings. User always gets default sort option when first login occurs, and manual change has to be done to change the settings. If one user wants to have different lang pair, another account will be needed in this case.
 	SourceLang string `bson:"sourceLang" json:"sourceLang"`
