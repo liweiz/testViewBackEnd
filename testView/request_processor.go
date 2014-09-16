@@ -73,6 +73,43 @@ func ProcessedResponseGeneratorPasswordResetting() martini.Handler {
 	}
 }
 
+func ProcessedResponseGeneratorGetOneUser() martini.Handler {
+	return func(db *mgo.Database, req *http.Request, params martini.Params, rw http.ResponseWriter, logger *log.Logger) {
+		var err error
+		var resultUser UserInCommon
+		var s string
+		resStruct := ResUser{}
+		err = db.C("users").Find(bson.M{
+			"_id": bson.ObjectIdHex(params["user_id"])}).Select(GetSelector(SelectUserInCommon)).One(&resultUser)
+		if err == nil {
+			resStruct.User = resultUser
+		}
+		// Send response.
+		rw.Header().Set("Content-Type", "application/json")
+		var j []byte
+		j, err = json.Marshal(resStruct)
+		if err == nil {
+			// Response size, any usage???
+			_, err = rw.Write(j)
+			fmt.Println("code:", 200)
+			os.Stdout.Write(j)
+		}
+		if err != nil {
+			s = strings.Join([]string{"Failed to generate response, but request has been successfully processed by server.", err.Error()}, "=> ")
+		}
+		if err != nil {
+			if s == "" {
+				WriteLog(err.Error(), logger)
+				fmt.Println("err to log: ", err.Error())
+				http.Error(rw, err.Error(), http.StatusInternalServerError)
+			} else {
+				WriteLog(s, logger)
+				http.Error(rw, s, http.StatusServiceUnavailable)
+			}
+		}
+	}
+}
+
 func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq interface{}, req *http.Request, structForRes interface{}, params martini.Params) (err error) {
 	m := req.Method
 	// x and v are struct corresponding to JSON, so, to get the parts we need, there's one step further needed.
@@ -101,15 +138,6 @@ func ProcessRequest(db *mgo.Database, route int, criteria bson.M, structFromReq 
 				"_id": bson.ObjectIdHex(params["device_id"])}).Select(GetSelector(SelectDeviceInfoInCommon)).One(&resultDeviceInfo)
 			if err == nil {
 				err = SetResBodyPart(v, "DeviceInfo", reflect.ValueOf(resultDeviceInfo))
-			}
-		case OneUser:
-			var resultUser UserInCommon
-			resStruct := ResUser{}
-			err = db.C("users").Find(bson.M{
-				"_id": bson.ObjectIdHex(params["user_id"])}).Select(GetSelector(SelectUserInCommon)).One(&resultUser)
-			if err == nil {
-				resStruct.User = resultUser
-				err = SetResBodyPart(reflect.ValueOf(resStruct), "User", reflect.ValueOf(resultUser))
 			}
 		// case dicTranslation:
 		// case dicDetail:

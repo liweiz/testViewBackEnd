@@ -87,7 +87,7 @@ func main() {
 	// Send an email with url to change a user's password.
 	m.Get("/users/:user_id/password", testView.GateKeeper(), testView.EmailSender(testView.EmailForPasswordResetting))
 	// Get user
-	m.Get("/users/:user_id", testView.GateKeeper(), testView.ProcessedResponseGenerator(testView.OneUser, false))
+	m.Get("/users/:user_id", testView.GateKeeper(), testView.ProcessedResponseGeneratorGetOneUser())
 
 	// Delete a card. oneCard
 	m.Delete("/users/:user_id/cards/:card_id", testView.GateKeeper(), testView.NonActivationBlocker(), testView.RequestPreprocessor(testView.OneCard), testView.ReqIdChecker(), testView.ProcessedResponseGenerator(testView.OneCard, true))
